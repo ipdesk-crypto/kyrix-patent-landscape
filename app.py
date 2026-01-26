@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import hmac
 from datetime import datetime
 
-# --- 1. PAGE CONFIG & LUXURY THEME (EXACTLY FROM CODE 1) ---
+# --- 1. PAGE CONFIG & LUXURY THEME (KYRIX BRANDING) ---
 st.set_page_config(
     page_title="Kyrix | Intelligence Command",
     page_icon="🛡️",
@@ -18,7 +18,6 @@ st.set_page_config(
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; } 
-    .logo-container { display: flex; justify-content: center; padding: 25px 0; }
     h1, h2, h3, h4, p, span, label, .stMarkdown { color: #F1F5F9 !important; font-family: 'Inter', sans-serif; }
     
     .metric-badge {
@@ -61,14 +60,14 @@ st.markdown("""
     [data-testid="stSidebar"] { background-color: #020617 !important; border-right: 1px solid #1E293B; }
     .stTabs [aria-selected="true"] { background-color: #3B82F6 !important; color: #FFFFFF !important; font-weight: bold; }
     
-    .stDownloadButton button {
-        background-color: #F59E0B !important; color: #0F172A !important;
-        font-weight: 700 !important; border: none !important; width: 100%;
+    .metric-card-analysis {
+        background-color: #1E293B; border-radius: 15px; padding: 25px; text-align: center;
+        border-bottom: 6px solid #F59E0B; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. SEARCH & DATA UTILS (RESTORED FROM CODE 1) ---
+# --- 2. CORE UTILS & DATA ENGINE ---
 
 def boolean_search(df, query):
     if not query: return pd.Series([True] * len(df))
@@ -92,29 +91,41 @@ def boolean_search(df, query):
     return combined_series.apply(check_row)
 
 @st.cache_data
-def load_data():
+def load_and_preprocess():
     path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
-    if not os.path.exists(path): return None, None, None
+    if not os.path.exists(path): return None, None, None, None
+    
     df_raw = pd.read_csv(path, header=0)
     category_row = df_raw.iloc[0] 
     col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
     df = df_raw.iloc[1:].reset_index(drop=True)
     
-    # Pre-processing for the Analysis Engine (Code 2 logic)
-    df_clean = df.copy()
-    df_clean['AppDate'] = pd.to_datetime(df_clean['Application Date'], errors='coerce')
-    df_clean['Year'] = df_clean['AppDate'].dt.year
-    df_clean['Month_Name'] = df_clean['AppDate'].dt.month_name()
-    df_clean['Firm'] = df_clean['Data of Agent - Name in English'].fillna("DIRECT FILING").str.strip().str.upper()
+    # Analysis Preprocessing (From Code 2)
+    df_p = df.copy()
+    df_p['AppDate'] = pd.to_datetime(df_p['Application Date'], errors='coerce')
+    df_p['PriorityDate'] = pd.to_datetime(df_p['Earliest Priority Date'], errors='coerce')
+    df_p['Year'] = df_p['AppDate'].dt.year
+    df_p['Month_Name'] = df_p['AppDate'].dt.month_name()
+    df_p['Arrival_Month'] = df_p['AppDate'].dt.to_period('M').dt.to_timestamp()
+    df_p['Priority_Month'] = df_p['PriorityDate'].dt.to_period('M').dt.to_timestamp()
+    df_p['Firm'] = df_p['Data of Agent - Name in English'].fillna("DIRECT FILING").str.strip().str.upper()
     
-    return df, col_map, df_clean
+    # IPC Engine
+    df_p['IPC_Raw'] = df_p['Classification'].astype(str).str.split(',')
+    df_exp = df_p.explode('IPC_Raw')
+    df_exp['IPC_Clean'] = df_exp['IPC_Raw'].str.strip().str.upper()
+    df_exp = df_exp[~df_exp['IPC_Clean'].str.contains("NO CLASSIFICATION|NAN|NONE", na=False)]
+    df_exp['IPC_Class3'] = df_exp['IPC_Clean'].str[:3] 
+    df_exp['IPC_Section'] = df_exp['IPC_Clean'].str[:1]
+    
+    return df, col_map, df_p, df_exp
 
 def get_logo():
     for ext in ["png", "jpg", "jpeg"]:
         if os.path.exists(f"logo.{ext}"): return f"logo.{ext}"
     return None
 
-# --- 3. AUTHENTICATION (KYRIX BRANDING) ---
+# --- 3. AUTHENTICATION ---
 if "auth" not in st.session_state: st.session_state.auth = False
 
 if not st.session_state.auth:
@@ -127,17 +138,15 @@ if not st.session_state.auth:
         st.markdown("<h3>KYRIX INTELLIGENCE LOGIN</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
-            if key in ["Kyrix2024", "LeoGiannotti2026!"]: 
-                st.session_state.auth = True
-                st.rerun()
+            if key in ["Kyrix2024", "LeoGiannotti2026!"]: st.session_state.auth = True; st.rerun()
             else: st.error("INVALID CREDENTIALS")
         st.markdown('</div>', unsafe_allow_html=True)
 
 else:
-    df, col_map, df_analytics = load_data()
+    df, col_map, df_main, df_exp = load_and_preprocess()
     
     if df is not None:
-        # --- SIDEBAR: ALL FIELD FILTERS (RESTORED FROM CODE 1) ---
+        # --- SIDEBAR FILTERS ---
         with st.sidebar:
             logo = get_logo()
             if logo: st.image(logo)
@@ -147,98 +156,119 @@ else:
             st.markdown("---")
             st.markdown("### 🛠️ TECHNICAL FILTERS")
             field_filters = {}
-            field_filters['Title in English'] = st.text_input("Search in Title", key="filter_title")
-            field_filters['Abstract in English'] = st.text_input("Search in Abstract", key="filter_abstract")
+            field_filters['Title in English'] = st.text_input("Search in Title", key="f_t")
+            field_filters['Abstract in English'] = st.text_input("Search in Abstract", key="f_a")
             
-            st.markdown("---")
-            st.markdown("### 🏢 ENTITY FILTERS")
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 if field in df.columns:
-                    field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}", key=f"filter_{field}")
+                    field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}", key=f"f_{field}")
 
             with st.expander("Show All Other Columns"):
                 for col in df.columns:
                     if col not in other_fields and col not in ['Abstract in English', 'Title in English']:
-                        val = st.text_input(f"{col}", key=f"extra_{col}")
+                        val = st.text_input(col, key=f"ex_{col}")
                         if val: field_filters[col] = val
 
             if st.button("RESET ALL"): st.rerun()
 
-        # Apply logic
+        # Apply Filtering
         mask = boolean_search(df, global_query)
         for field, f_query in field_filters.items():
-            if f_query:
-                mask &= df[field].astype(str).str.contains(f_query, case=False, na=False)
+            if f_query: mask &= df[field].astype(str).str.contains(f_query, case=False, na=False)
         res = df[mask]
+        res_main = df_main[mask]
+        res_exp = df_exp[df_exp['Application Number'].isin(res['Application Number'])]
 
-        # --- 4. MAIN INTERFACE TABS ---
+        # --- 4. MAIN TABS ---
         st.markdown(f'<div class="metric-badge">● {len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
-        
-        tab_db, tab_dossier, tab_analysis = st.tabs(["📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW", "📈 STRATEGIC ANALYSIS"])
+        tab_db, tab_dossier, tab_analysis = st.tabs(["📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW", "📊 STRATEGIC ANALYSIS ENGINE"])
 
+        # TAB 1: GRID
         with tab_db:
             st.dataframe(res, use_container_width=True, hide_index=True)
 
+        # TAB 2: DOSSIER
         with tab_dossier:
-            if res.empty:
-                st.info("No records to display.")
+            if res.empty: st.info("No records.")
             else:
                 choice = st.selectbox("SELECT PATENT FILE:", res['Application Number'].unique())
                 row = res[res['Application Number'] == choice].iloc[0]
-
-                st.markdown("---")
-                d1, d2 = st.columns([3, 1])
-                with d1:
-                    app_type = row['Application Type (ID)'] if pd.notna(row['Application Type (ID)']) else "N/A"
-                    st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {app_type}</span>", unsafe_allow_html=True)
-                with d2:
-                    st.download_button("📥 EXPORT DOSSIER", f"KYRIX REPORT\n{row['Title in English']}", f"{choice}.txt")
-
-                # ENRICHED SECTION (From Code 1)
+                st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', 'N/A')}</span>", unsafe_allow_html=True)
+                
                 st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
                 e_cols = [c for c, t in col_map.items() if t == "Enriched"]
-                ec1, ec2, ec3 = st.columns(3)
-                for i, col in enumerate(e_cols):
-                    val = row[col] if pd.notna(row[col]) else "—"
-                    with [ec1, ec2, ec3][i % 3]:
-                        st.markdown(f"<div class='data-card' style='border-left: 4px solid #3B82F6;'><div class='label-text'>{col}</div><div class='value-text'>{val}</div></div>", unsafe_allow_html=True)
-
-                # RAW DATA SECTION (From Code 1)
+                ec = st.columns(3)
+                for i, c in enumerate(e_cols):
+                    with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:4px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                
                 st.markdown('<div class="section-header raw-banner">Raw Source Data</div>', unsafe_allow_html=True)
                 r_cols = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English", "Application Type (ID)"]]
-                rc1, rc2, rc3 = st.columns(3)
-                for i, col in enumerate(r_cols):
-                    val = row[col] if pd.notna(row[col]) else "—"
-                    with [rc1, rc2, rc3][i % 3]:
-                        st.markdown(f"<div class='data-card'><div class='label-text'>{col}</div><div class='value-text'>{val}</div></div>", unsafe_allow_html=True)
+                rc = st.columns(3)
+                for i, c in enumerate(r_cols):
+                    with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                
+                st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
+                st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
 
-                # ABSTRACT (From Code 1)
-                st.markdown('<div class="section-header title-banner">Technical Abstract & Description</div>', unsafe_allow_html=True)
-                abstract_text = row['Abstract in English'] if pd.notna(row['Abstract in English']) else "No technical abstract provided."
-                st.markdown(f"<div class='abstract-container'>{abstract_text}</div>", unsafe_allow_html=True)
-
+        # TAB 3: NESTED ANALYSIS ENGINE (CODE 2 FULL FUNCTIONALITY)
         with tab_analysis:
-            st.markdown("### 🏛️ KYRIX STRATEGIC ENGINE")
-            # Filtering the analytics dataframe based on current search results
-            df_a_filtered = df_analytics[df_analytics['Application Number'].isin(res['Application Number'])]
+            st.markdown("### 🏛️ ARCHISTRATEGOS ANALYSIS CORE")
+            a_tabs = st.tabs(["📈 App Type Growth", "🏢 Firm Intelligence", "🔬 Firm Tech-Strengths", "🎯 STRATEGIC MAP", "📊 IPC Classification", "📉 Dynamic Moving Averages", "📅 Monthly Filing"])
             
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.subheader("Application Type Growth")
-                growth = df_a_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig1 = px.line(growth, x='Year', y='Count', color='Application Type (ID)', template="plotly_dark")
-                st.plotly_chart(fig1, use_container_width=True)
-            
-            with col_b:
-                st.subheader("Top Filing Agents")
-                firms = df_a_filtered['Firm'].value_counts().nlargest(10).reset_index()
-                fig2 = px.bar(firms, x='count', y='Firm', orientation='h', template="plotly_dark", color_discrete_sequence=['#F59E0B'])
-                st.plotly_chart(fig2, use_container_width=True)
+            # 1. Growth
+            with a_tabs[0]:
+                growth = res_main.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
+                st.plotly_chart(px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, template="plotly_dark"), use_container_width=True)
 
-            st.subheader("Filing Momentum (Monthly)")
-            monthly = df_a_filtered.groupby('Month_Name').size().reindex(["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], fill_value=0)
-            st.bar_chart(monthly)
+            # 2. Firm IQ
+            with a_tabs[1]:
+                top_firms = res_main['Firm'].value_counts().nlargest(10).index.tolist()
+                selected_firms = st.multiselect("Compare Firms:", sorted(res_main['Firm'].unique()), default=top_firms[:5])
+                if selected_firms:
+                    f_growth = res_main[res_main['Firm'].isin(selected_firms)].groupby(['Year', 'Firm']).size().reset_index(name='Apps')
+                    st.plotly_chart(px.line(f_growth, x='Year', y='Apps', color='Firm', markers=True, template="plotly_dark"), use_container_width=True)
+
+            # 3. Tech Strengths
+            with a_tabs[2]:
+                if not res_exp.empty:
+                    firm_ipc = res_exp.groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
+                    st.plotly_chart(px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', template="plotly_dark"), use_container_width=True)
+
+            # 4. Strategic Map
+            with a_tabs[3]:
+                land_data = res_exp.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
+                st.plotly_chart(px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', template="plotly_dark"), use_container_width=True)
+
+            # 5. IPC Class
+            with a_tabs[4]:
+                ipc_counts = res_exp.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
+                st.plotly_chart(px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', template="plotly_dark"), use_container_width=True)
+
+            # 6. Moving Averages
+            with a_tabs[5]:
+                target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + sorted(res_exp['IPC_Class3'].unique()))
+                smooth_val = st.slider("Smoothing (Months):", 1, 36, 12)
+                
+                analysis_df = res_exp if target_ipc == "ALL IPC" else res_exp[res_exp['IPC_Class3'] == target_ipc]
+                work_df = res_main if target_ipc == "ALL IPC" else res_main[res_main['Application Number'].isin(analysis_df['Application Number'])]
+                
+                full_range = pd.date_range(start='2010-01-01', end=res_main['AppDate'].max(), freq='MS')
+                t_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().unstack(fill_value=0)
+                t_ma = t_counts.reindex(full_range, fill_value=0).rolling(window=smooth_val, min_periods=1).mean()
+                
+                fig = go.Figure()
+                for c in t_ma.columns:
+                    fig.add_trace(go.Scatter(x=t_ma.index, y=t_ma[c], mode='lines', name=c, stackgroup='one', fill='tonexty'))
+                st.plotly_chart(fig, use_container_width=True)
+
+            # 7. Monthly
+            with a_tabs[6]:
+                sel_year = st.selectbox("Year:", sorted(res_main['Year'].unique(), reverse=True))
+                m_data = res_main[res_main['Year'] == sel_year]
+                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                m_counts = m_data.groupby('Month_Name').size().reindex(m_order, fill_value=0).reset_index(name='Apps')
+                st.plotly_chart(px.bar(m_counts, x='Month_Name', y='Apps', template="plotly_dark"), use_container_width=True)
 
     else:
         st.error("FATAL ERROR: CSV File not found.")
