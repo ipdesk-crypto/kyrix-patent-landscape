@@ -15,11 +15,31 @@ st.set_page_config(
     layout="wide"
 )
 
-# FORCE DARK THEME & PROFESSIONAL UI
+# FORCE DARK THEME & PROFESSIONAL UI (Overrides System Settings)
 st.markdown("""
     <style>
+    /* Force high-contrast dark theme regardless of system settings */
+    :root {
+        --primary-color: #F59E0B;
+        --background-color: #0F172A;
+        --secondary-background-color: #1E293B;
+        --text-color: #F1F5F9;
+        --font: 'sans serif';
+    }
+    
+    .stApp {
+        background-color: #0F172A !important;
+        color: #F1F5F9 !important;
+    }
+
+    /* Force Sidebar Dark */
+    section[data-testid="stSidebar"] {
+        background-color: #020617 !important;
+        border-right: 1px solid #1E293B;
+    }
+    
     /* Global Background and Text */
-    .main, .stApp { background-color: #0F172A !important; color: #F1F5F9; }
+    .main { background-color: #0F172A !important; }
     
     /* Force Dataframe into Dark Mode */
     [data-testid="stDataFrame"] {
@@ -41,10 +61,10 @@ st.markdown("""
         border-color: #3B82F6;
         transform: translateY(-2px);
     }
-    .patent-title { color: #3B82F6; font-size: 18px; font-weight: 700; text-decoration: none; margin-bottom: 5px; display: block; }
-    .patent-meta { color: #94A3B8; font-size: 13px; margin-bottom: 10px; }
-    .patent-snippet { color: #CBD5E1; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-    .patent-tag { background: #1E293B; color: #F59E0B; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-right: 5px; }
+    .patent-title { color: #3B82F6 !important; font-size: 18px; font-weight: 700; text-decoration: none; margin-bottom: 5px; display: block; }
+    .patent-meta { color: #94A3B8 !important; font-size: 13px; margin-bottom: 10px; }
+    .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .patent-tag { background: #1E293B; color: #F59E0B !important; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-right: 5px; }
 
     /* Custom Metric Badges */
     .metric-badge {
@@ -57,8 +77,7 @@ st.markdown("""
         display: inline-block; margin-bottom: 20px;
     }
     
-    /* Form and Sidebar */
-    [data-testid="stSidebar"] { background-color: #020617 !important; border-right: 1px solid #1E293B; }
+    /* Inputs */
     .stTextInput>div>div>input { background-color: #1E293B !important; color: white !important; border: 1px solid #334155 !important; }
     
     .section-header {
@@ -75,16 +94,16 @@ st.markdown("""
         border: 1px solid #1F2937; border-bottom: 1px solid #374151;
         min-height: 80px;
     }
-    .label-text { font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-    .value-text { font-size: 15px; color: #F8FAFC; font-weight: 500; line-height: 1.4; }
+    .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
+    .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; line-height: 1.4; }
     
     .abstract-container {
         background-color: #1E293B; padding: 30px; border-radius: 0 0 12px 12px;
         border: 1px solid #334155; border-top: none;
-        line-height: 1.8; font-size: 17px; color: #E2E8F0; text-align: justify;
+        line-height: 1.8; font-size: 17px; color: #E2E8F0 !important; text-align: justify;
     }
     .type-badge {
-        background-color: #F59E0B; color: #0F172A; padding: 4px 12px; 
+        background-color: #F59E0B; color: #0F172A !important; padding: 4px 12px; 
         border-radius: 4px; font-weight: 800; font-size: 12px; margin-left: 10px;
     }
 
@@ -93,8 +112,12 @@ st.markdown("""
         text-align: center; border-bottom: 6px solid #F59E0B;
         box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px;
     }
-    .metric-label-kyrix { color: #F59E0B; font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-    .metric-value-kyrix { color: #ffffff; font-size: 2.5em; font-weight: 900; font-family: 'Courier New', monospace; }
+    .metric-label-kyrix { color: #F59E0B !important; font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+    .metric-value-kyrix { color: #ffffff !important; font-size: 2.5em; font-weight: 900; font-family: 'Courier New', monospace; }
+    
+    /* Fix for Tabs */
+    button[data-baseweb="tab"] { color: #94A3B8 !important; }
+    button[aria-selected="true"] { color: #F59E0B !important; border-bottom-color: #F59E0B !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -169,7 +192,7 @@ if not st.session_state.auth:
         logo = get_logo()
         if logo: st.image(logo, use_container_width=True)
         st.markdown('<div style="background:#1E293B; padding:40px; border-radius:12px; border:1px solid #334155; text-align:center;">', unsafe_allow_html=True)
-        st.markdown("<h3>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
             if key in ["Kyrix2024", "LeoGiannotti2026!"]: 
@@ -273,13 +296,13 @@ else:
 
         with tabs[0]:
             growth = df_f.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-            st.plotly_chart(px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600, template="plotly_dark"), use_container_width=True)
+            fig0 = px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600, template="plotly_dark")
+            st.plotly_chart(fig0, use_container_width=True)
             st.subheader("📊 Growth Summary Table")
             growth_pivot = growth.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int)
             st.dataframe(growth_pivot, use_container_width=True)
 
         with tabs[1]:
-            # FILTER: Remove Direct Filing from analytics view
             df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
             all_firms = sorted(df_firms_only['Firm'].unique())
             top_firms_list = df_firms_only['Firm'].value_counts().nlargest(10).index.tolist()
@@ -303,30 +326,33 @@ else:
                 st.dataframe(rank_df, use_container_width=True, hide_index=True)
                 
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
-                st.plotly_chart(px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600, template="plotly_dark"), use_container_width=True)
+                fig1 = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600, template="plotly_dark")
+                st.plotly_chart(fig1, use_container_width=True)
                 st.subheader("📊 Firm Annual Volume Matrix")
                 firm_summary = firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0)
                 st.dataframe(firm_summary, use_container_width=True)
 
         with tabs[2]:
-            # FILTER: Remove Direct Filing from tech-strength view
             df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
             if 'selected_firms' in locals() and selected_firms:
                 firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
-                st.plotly_chart(px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600, template="plotly_dark"), use_container_width=True)
+                fig2 = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600, template="plotly_dark")
+                st.plotly_chart(fig2, use_container_width=True)
                 st.subheader("📊 Tech-Class Distribution per Firm")
                 tech_pivot = firm_ipc.pivot(index='Firm', columns='IPC_Class3', values='Count').fillna(0).astype(int)
                 st.dataframe(tech_pivot, use_container_width=True)
 
         with tabs[3]:
             land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
-            st.plotly_chart(px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600, template="plotly_dark"), use_container_width=True)
+            fig3 = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600, template="plotly_dark")
+            st.plotly_chart(fig3, use_container_width=True)
             st.subheader("📊 IPC Class Strategic Density")
             st.dataframe(land_data.rename(columns={'Application Number': 'Total Apps', 'Firm': 'Unique Agents'}).sort_values('Total Apps', ascending=False), use_container_width=True, hide_index=True)
 
         with tabs[4]:
             ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
-            st.plotly_chart(px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600, template="plotly_dark"), use_container_width=True)
+            fig4 = px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600, template="plotly_dark")
+            st.plotly_chart(fig4, use_container_width=True)
 
         with tabs[5]:
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
@@ -352,7 +378,6 @@ else:
                 full_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
-                
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).mean()
                 
                 fig = go.Figure()
@@ -364,9 +389,10 @@ else:
                         name=f'Type: {col_name}',
                         line=dict(width=3)
                     ))
-                
                 fig.update_layout(
                     template="plotly_dark", 
+                    paper_bgcolor="#0F172A",
+                    plot_bgcolor="#0F172A",
                     title=f"12-Month Moving Average: {target_ipc}", 
                     xaxis_title="Timeline", 
                     yaxis_title="Trend Value (Avg Apps/Mo)",
@@ -382,7 +408,8 @@ else:
             yr_data = df_f[df_f['Year'] == sel_year]
             m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             counts = yr_data.groupby('Month_Name').size().reindex(m_order, fill_value=0).reset_index(name='Apps')
-            st.plotly_chart(px.bar(counts, x='Month_Name', y='Apps', text='Apps', height=600, template="plotly_dark"), use_container_width=True)
+            fig6 = px.bar(counts, x='Month_Name', y='Apps', text='Apps', height=600, template="plotly_dark")
+            st.plotly_chart(fig6, use_container_width=True)
 
         with tabs[7]:
             st.markdown("### 📊 IPC Growth Histogram")
