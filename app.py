@@ -67,6 +67,11 @@ st.markdown("""
     }
     .metric-label-kyrix { color: #F59E0B; font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
     .metric-value-kyrix { color: #ffffff; font-size: 2.5em; font-weight: 900; font-family: 'Courier New', monospace; }
+    
+    /* Rank Table Styling */
+    .rank-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .rank-table th { background-color: #1E293B; color: #F59E0B; padding: 10px; text-align: left; border-bottom: 2px solid #334155; }
+    .rank-table td { padding: 10px; border-bottom: 1px solid #1E293B; color: #F1F5F9; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -102,10 +107,8 @@ def load_and_preprocess_all():
     category_row = df_raw.iloc[0] 
     col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
     
-    # Load and clean search data - REPLACE NaN with "-"
     df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
     
-    # Process Analysis Data
     df = df_search.copy()
     df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce')
     df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce')
@@ -117,7 +120,6 @@ def load_and_preprocess_all():
     df['Priority_Month'] = df['PriorityDate'].dt.to_period('M').dt.to_timestamp()
     df['Firm'] = df['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
     
-    # IPC Explosion Engine
     df['IPC_Raw'] = df['Classification'].astype(str).str.split(',')
     df_exp = df.explode('IPC_Raw')
     df_exp['IPC_Clean'] = df_exp['IPC_Raw'].str.strip().str.upper()
@@ -202,8 +204,11 @@ else:
         with tab_dossier:
             if res.empty: st.info("No records.")
             else:
-                choice = st.selectbox("SELECT PATENT FILE:", res['Application Number'].unique())
-                row = res[res['Application Number'] == choice].iloc[0]
+                # UPDATED: Selectbox now shows Title and short Abstract snippet
+                res['Display_Label'] = res.apply(lambda x: f"{x['Application Number']} | {x['Title in English'][:60]}... | {x['Abstract in English'][:80]}...", axis=1)
+                choice_label = st.selectbox("SELECT PATENT FILE:", res['Display_Label'].unique())
+                choice_number = choice_label.split(" | ")[0]
+                row = res[res['Application Number'] == choice_number].iloc[0]
                 
                 st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
                 
@@ -235,13 +240,34 @@ else:
             st.dataframe(growth_pivot, use_container_width=True)
 
         with tabs[1]:
-            top_firms = df_f['Firm'].value_counts().nlargest(10).index.tolist()
-            selected_firms = st.multiselect("Select Firms to Compare:", sorted(df_f['Firm'].unique()), default=top_firms[:5])
-            if selected_firms:
-                firm_growth = df_f[df_f['Firm'].isin(selected_firms)].groupby(['Year', 'Firm']).size().reset_index(name='Apps')
+            # UPDATED: Firm Intelligence with "Select All" and Ranking
+            all_firms = sorted(df_f['Firm'].unique())
+            top_firms_list = df_f['Firm'].value_counts().nlargest(10).index.tolist()
+            
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                firm_select_all = st.checkbox("Select All Firms")
+                selected_firms = st.multiselect("Select Firms to Compare:", all_firms, default=top_firms_list[:5] if not firm_select_all else all_firms)
+                if firm_select_all: selected_firms = all_firms
+            with c2:
+                available_years = sorted(df_f['Year'].unique(), reverse=True)
+                selected_years = st.multiselect("Filter Analysis Years:", available_years, default=available_years)
+            
+            if selected_firms and selected_years:
+                firm_sub = df_f[(df_f['Firm'].isin(selected_firms)) & (df_f['Year'].isin(selected_years))]
+                
+                # Firm Ranking Summary
+                st.markdown("### 🏆 Firm Volume Ranking")
+                rank_df = firm_sub['Firm'].value_counts().reset_index()
+                rank_df.columns = ['Firm', 'Total Applications']
+                st.dataframe(rank_df, use_container_width=True, hide_index=True)
+                
+                # Growth Plot
+                firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
                 st.plotly_chart(px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600, template="plotly_dark"), use_container_width=True)
-                st.subheader("📊 Firm Volume Summary")
-                firm_summary = df_f[df_f['Firm'].isin(selected_firms)].groupby(['Firm', 'Year']).size().unstack(fill_value=0)
+                
+                st.subheader("📊 Annual Volume per Firm")
+                firm_summary = firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0)
                 st.dataframe(firm_summary, use_container_width=True)
 
         with tabs[2]:
@@ -263,31 +289,44 @@ else:
             st.plotly_chart(px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600, template="plotly_dark"), use_container_width=True)
 
         with tabs[5]:
+            # UPDATED: Moving Average with Year selection and removed Arrival Benchmark
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
-            target_ipc = st.selectbox("Search/Select IPC Class (3-Digit Prefix):", ["ALL IPC"] + unique_3char)
-            smooth_val = st.slider("Smoothing Window (Months):", 1, 36, 12)
+            ma_col1, ma_col2 = st.columns(2)
+            with ma_col1:
+                target_ipc = st.selectbox("Search/Select IPC Class (3-Digit Prefix):", ["ALL IPC"] + unique_3char)
+                smooth_val = st.slider("Smoothing Window (Months):", 1, 36, 12)
+            with ma_col2:
+                all_available_years = sorted(df_f['Year'].unique())
+                ma_years = st.multiselect("Select Years to View:", all_available_years, default=all_available_years)
 
             analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
             work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
-
-            full_range = pd.date_range(start='2010-01-01', end=df_f['AppDate'].max(), freq='MS')
-            type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
-            type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
-            type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=smooth_val, min_periods=1).mean()
-            arr_ma = work_df.groupby('Arrival_Month').size().reset_index(name='N').set_index('Arrival_Month').reindex(full_range, fill_value=0).rolling(window=smooth_val, min_periods=1).mean()
             
-            m1, m2, m3 = st.columns(3)
-            with m1: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Peak MA</div><div class="metric-value-kyrix">{type_ma.sum(axis=1).max():.2f}</div></div>', unsafe_allow_html=True)
-            with m2: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Volume</div><div class="metric-value-kyrix">{len(work_df)}</div></div>', unsafe_allow_html=True)
-            with m3: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Smoothing</div><div class="metric-value-kyrix">{smooth_val}M</div></div>', unsafe_allow_html=True)
+            # Filter by selected years
+            work_df = work_df[work_df['Year'].isin(ma_years)]
+            analysis_df = analysis_df[analysis_df['Year'].isin(ma_years)]
 
-            fig = go.Figure()
-            for col_name in type_ma.columns:
-                fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines', name=f'Type: {col_name}', stackgroup='one', fill='tonexty'))
-            fig.add_trace(go.Scatter(x=arr_ma.index, y=arr_ma['N'], mode='lines', name='Arrival Workload', line=dict(color='#F59E0B', width=3)))
-            st.plotly_chart(fig, use_container_width=True)
-            st.subheader("📊 Dynamic Momentum Table")
-            st.dataframe(type_ma.tail(24).sort_index(ascending=False), use_container_width=True)
+            if not work_df.empty:
+                full_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
+                type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
+                type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
+                type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=smooth_val, min_periods=1).mean()
+                
+                m1, m2, m3 = st.columns(3)
+                with m1: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Peak MA</div><div class="metric-value-kyrix">{type_ma.sum(axis=1).max():.2f}</div></div>', unsafe_allow_html=True)
+                with m2: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Volume</div><div class="metric-value-kyrix">{len(work_df)}</div></div>', unsafe_allow_html=True)
+                with m3: st.markdown(f'<div class="metric-card-kyrix"><div class="metric-label-kyrix">Smoothing</div><div class="metric-value-kyrix">{smooth_val}M</div></div>', unsafe_allow_html=True)
+
+                fig = go.Figure()
+                for col_name in type_ma.columns:
+                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines', name=f'Type: {col_name}', stackgroup='one', fill='tonexty'))
+                
+                fig.update_layout(template="plotly_dark", xaxis_title="Timeline", yaxis_title=f"{smooth_val}-Month Moving Average")
+                st.plotly_chart(fig, use_container_width=True)
+                st.subheader("📊 Dynamic Momentum Table")
+                st.dataframe(type_ma.tail(24).sort_index(ascending=False), use_container_width=True)
+            else:
+                st.warning("No data available for the selected criteria.")
 
         with tabs[6]:
             sel_year = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True))
