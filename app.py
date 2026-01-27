@@ -327,31 +327,55 @@ else:
         with tabs[5]:
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years = sorted(df_f['Year'].unique())
-            c1, c2 = st.columns(2)
+            c1, c2, c3 = st.columns(3)
             with c1:
                 target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
             with c2:
                 sel_all_ma_years = st.checkbox("Select All Years", value=True, key="all_years_ma")
                 ma_years = st.multiselect("Years Range:", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
                 if sel_all_ma_years: ma_years = all_av_years
+            with c3:
+                # NEW: Choose which types to see in the graph
+                all_available_types = sorted(df_f['Application Type (ID)'].unique())
+                selected_ma_types = st.multiselect("Visible Application Types:", all_available_types, default=all_available_types)
 
             analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
             work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
-            work_df = work_df[work_df['Year'].isin(ma_years)]
-            analysis_df = analysis_df[analysis_df['Year'].isin(ma_years)]
+            
+            # Filtering by selected years and types
+            work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].isin(selected_ma_types))]
+            analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].isin(selected_ma_types))]
 
             if not work_df.empty:
                 full_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
+                
+                # Reindex and calculate Moving Average
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).mean()
+                
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines', name=f'Type: {col_name}', stackgroup='one', fill='tonexty'))
-                fig.update_layout(template="plotly_dark", title=f"12-Month Moving Average: {target_ipc}", xaxis_title="Timeline", yaxis_title="Trend Value")
+                    # MULTILAYERED: Changed to lines with Legend enabled
+                    fig.add_trace(go.Scatter(
+                        x=type_ma.index, 
+                        y=type_ma[col_name], 
+                        mode='lines+markers', 
+                        name=f'Type: {col_name}',
+                        line=dict(width=3)
+                    ))
+                
+                fig.update_layout(
+                    template="plotly_dark", 
+                    title=f"12-Month Moving Average: {target_ipc}", 
+                    xaxis_title="Timeline", 
+                    yaxis_title="Trend Value (Avg Apps/Mo)",
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
                 st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("Insufficient data for the selected range.")
+                st.warning("Insufficient data for the selected range/types.")
 
         with tabs[6]:
             sel_year = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True))
@@ -366,11 +390,20 @@ else:
             all_av_years_hist = sorted(df_exp_f['Year'].unique())
             hc1, hc2 = st.columns(2)
             with hc1:
-                selected_ipc_hist = st.multiselect("Select IPC Classes to Compare:", unique_ipc_list, default=unique_ipc_list[:3])
+                # NEW: Option to see ALL IPC
+                all_ipc_trigger = st.checkbox("SELECT ALL IPC IN HISTOGRAM", value=False)
+                selected_ipc_hist = st.multiselect(
+                    "Select IPC Classes to Compare:", 
+                    unique_ipc_list, 
+                    default=unique_ipc_list[:3] if not all_ipc_trigger else unique_ipc_list
+                )
+                if all_ipc_trigger: selected_ipc_hist = unique_ipc_list
+                
             with hc2:
                 sel_all_hist_years = st.checkbox("Select All Years", value=True, key="all_years_hist")
                 hist_years = st.multiselect("Select Years:", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
                 if sel_all_hist_years: hist_years = all_av_years_hist
+                
             if selected_ipc_hist and hist_years:
                 hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
                 hist_growth = hist_data.groupby(['Year', 'IPC_Class3']).size().reset_index(name='Apps')
