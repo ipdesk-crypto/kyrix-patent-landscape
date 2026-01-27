@@ -15,16 +15,16 @@ st.set_page_config(
     layout="wide"
 )
 
-# TOTAL DARK MODE OVERRIDE - Targeting Light Mode browser settings & Table internals
+# TOTAL DARK MODE OVERRIDE - Targeting Light Mode browser settings
 st.markdown("""
     <style>
-    /* Global Reset */
+    /* 1. Global Reset - Force background and text color */
     html, body, [data-testid="stAppViewContainer"], .main, [data-testid="stHeader"] {
         background-color: #0F172A !important;
         color: #F1F5F9 !important;
     }
 
-    /* Sidebar Forcing */
+    /* 2. Sidebar - Force dark regardless of theme */
     [data-testid="stSidebar"] {
         background-color: #020617 !important;
         border-right: 1px solid #1E293B !important;
@@ -33,17 +33,7 @@ st.markdown("""
         color: #F1F5F9 !important;
     }
 
-    /* THE TABLE FIX: Force Dark Background on all Dataframes */
-    [data-testid="stDataFrame"], [data-testid="stTable"], .stDataFrame {
-        background-color: #111827 !important;
-    }
-    
-    /* Target the modern Streamlit Data Editor canvas */
-    [data-testid="data-grid-canvas"] {
-        filter: invert(90%) hue-rotate(180deg) brightness(1.2);
-    }
-    
-    /* Input Fields, Dropdowns, and Multiselects - Fix for Light Mode */
+    /* 3. Dropdowns, Multiselects, and Inputs - The 'White Box' Fix */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="input"] > div,
     .stMultiSelect div, 
@@ -54,61 +44,76 @@ st.markdown("""
         border-color: #334155 !important;
     }
     
-    /* Multiselect chips */
+    /* Multiselect chips (the selected items) */
     span[data-baseweb="tag"] {
         background-color: #3B82F6 !important;
         color: white !important;
     }
 
-    /* Tabs Fix */
+    /* 4. Dataframes and Tables - Forcing Dark Cells */
+    [data-testid="stDataFrame"], [data-testid="stTable"] {
+        background-color: #111827 !important;
+        border: 1px solid #1F2937 !important;
+    }
+    
+    /* Target the actual cells inside the dataframe */
+    .styled-table, [data-testid="stTable"] td, [data-testid="stTable"] th {
+        background-color: #111827 !important;
+        color: #F1F5F9 !important;
+        border: 1px solid #1F2937 !important;
+    }
+
+    /* 5. Tabs - Fix visibility */
     button[data-baseweb="tab"] {
         color: #94A3B8 !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
     }
     button[data-baseweb="tab"][aria-selected="true"] {
         color: #F59E0B !important;
         border-bottom-color: #F59E0B !important;
     }
 
-    /* Sleek Patent Cards */
+    /* 6. Professional Patent Cards */
     .patent-card {
         background-color: #111827 !important;
         border: 1px solid #1F2937 !important;
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 20px;
         margin-bottom: 15px;
+        transition: transform 0.2s, border-color 0.2s;
     }
-    .patent-title { color: #3B82F6 !important; font-size: 18px; font-weight: 700; text-transform: uppercase; }
-    .patent-meta { color: #94A3B8 !important; font-size: 13px; margin-top: 5px; }
-    .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.6; margin-top: 10px; }
+    .patent-card:hover {
+        border-color: #3B82F6 !important;
+        transform: translateY(-2px);
+    }
+    .patent-title { color: #3B82F6 !important; font-size: 18px; font-weight: 700; text-decoration: none; margin-bottom: 5px; display: block; }
+    .patent-meta { color: #94A3B8 !important; font-size: 13px; margin-bottom: 10px; }
+    .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.5; }
     .patent-tag { background: #1E293B !important; color: #F59E0B !important; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
 
-    /* Metric Badges and Headers */
+    /* 7. Metric Badges and Headers */
     .metric-badge {
-        background: #020617 !important;
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
         color: #F59E0B !important;
-        padding: 12px 25px;
-        border-radius: 4px;
-        font-weight: 800; font-size: 18px;
-        border: 1px solid #F59E0B !important;
+        padding: 15px 30px;
+        border-radius: 12px;
+        font-weight: 800; font-size: 20px;
+        border: 1px solid #334155 !important;
         display: inline-block; margin-bottom: 20px;
-        text-transform: uppercase;
-        letter-spacing: 2px;
     }
     
     .section-header {
-        font-size: 13px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
-        padding: 15px 20px; border-radius: 4px 4px 0 0; margin-top: 30px;
-        border: 1px solid #475569 !important;
+        font-size: 14px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
+        padding: 15px 20px; border-radius: 8px 8px 0 0; margin-top: 30px;
+        border: 1px solid #475569 !important; border-bottom: none !important;
     }
-    .enriched-banner { background: #1E40AF !important; color: #FFFFFF !important; }
-    .raw-banner { background: #1E293B !important; color: #CBD5E1 !important; }
+    .enriched-banner { background: linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%) !important; color: #FFFFFF !important; }
+    .raw-banner { background: linear-gradient(90deg, #1E293B 0%, #334155 100%) !important; color: #CBD5E1 !important; }
     .title-banner { background: #1E293B !important; border: 1px solid #F59E0B !important; color: #F59E0B !important; }
-
+    
     .data-card { 
         background-color: #111827 !important; padding: 16px; 
-        border: 1px solid #1F2937 !important;
+        border: 1px solid #1F2937 !important; border-bottom: 1px solid #374151 !important;
+        min-height: 80px;
     }
     .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; }
     .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; }
@@ -206,8 +211,8 @@ if not st.session_state.auth:
     with col2:
         logo = get_logo()
         if logo: st.image(logo, use_container_width=True)
-        st.markdown('<div style="background:#1E293B; padding:40px; border-radius:4px; border:1px solid #F59E0B; text-align:center;">', unsafe_allow_html=True)
-        st.markdown("<h3 style='color:white; letter-spacing:2px;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
+        st.markdown('<div style="background:#1E293B; padding:40px; border-radius:12px; border:1px solid #F59E0B; text-align:center;">', unsafe_allow_html=True)
+        st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
             if key in ["Kyrix2024", "LeoGiannotti2026!"]: 
@@ -220,44 +225,44 @@ else:
     with st.sidebar:
         logo = get_logo()
         if logo: st.image(logo)
-        st.markdown("<h2 style='letter-spacing:2px;'>SYSTEM MODE</h2>", unsafe_allow_html=True)
-        app_mode = st.radio("SELECT VIEW", ["Intelligence Search", "Strategic Analysis"])
+        st.markdown("## SYSTEM MODE")
+        app_mode = st.radio("SELECT VIEW:", ["Intelligence Search", "Strategic Analysis"])
         st.markdown("---")
 
         if app_mode == "Intelligence Search":
-            st.markdown("### COMMAND CENTER")
-            global_query = st.text_input("QUERY STRING", placeholder="e.g. AI AND Hydrogen")
+            st.markdown("### GLOBAL COMMAND")
+            global_query = st.text_input("GOOGLE PATENT STYLE SEARCH", placeholder="e.g. AI AND Hydrogen")
             st.markdown("### FILTERS")
             field_filters = {}
-            field_filters['Title in English'] = st.text_input("Title")
-            field_filters['Abstract in English'] = st.text_input("Abstract")
+            field_filters['Title in English'] = st.text_input("Search in Title")
+            field_filters['Abstract in English'] = st.text_input("Search in Abstract")
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
-            with st.expander("Additional Parameters"):
+            with st.expander("Show All Other Columns"):
                 for col in df_search.columns:
                     if col not in other_fields and col not in ['Abstract in English', 'Title in English']:
                         val = st.text_input(col, key=f"ex_{col}")
                         if val: field_filters[col] = val
         else:
-            st.markdown("### ANALYTICS PARAMETERS")
+            st.markdown("### ANALYTICS FILTERS")
             all_types = sorted(df_main['Application Type (ID)'].unique())
-            selected_types = st.multiselect("Application Types", all_types, default=all_types)
+            selected_types = st.multiselect("Select Application Types:", all_types, default=all_types)
             df_f = df_main[df_main['Application Type (ID)'].isin(selected_types)]
             df_exp_f = df_exp[df_exp['Application Type (ID)'].isin(selected_types)]
-            st.success(f"Units Analyzed: {len(df_f)}")
+            st.success(f"Records Analyzed: {len(df_f)}")
 
-        if st.button("RESET"): st.rerun()
+        if st.button("RESET SYSTEM"): st.rerun()
 
-    # --- 5. SEARCH ENGINE ---
+    # --- 5. MODE: SEARCH ENGINE ---
     if app_mode == "Intelligence Search":
         mask = boolean_search(df_search, global_query)
         for field, f_query in field_filters.items():
             if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
         res = df_search[mask]
         
-        st.markdown(f'<div class="metric-badge">{len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
-        tab_list, tab_grid, tab_dossier = st.tabs(["OVERVIEW", "DATA GRID", "DOSSIER VIEW"])
+        st.markdown(f'<div class="metric-badge">● {len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
+        tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
         
         with tab_list:
             if res.empty: st.info("No records match your query.")
@@ -268,9 +273,9 @@ else:
                         <div class="patent-title">{row['Title in English']}</div>
                         <div class="patent-meta">
                             <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
-                            <b>APP:</b> {row['Application Number']} | 
-                            <b>HOLDER:</b> {row['Data of Applicant - Legal Name in English']} | 
-                            <b>FILED:</b> {row['Application Date']}
+                            <b>App No:</b> {row['Application Number']} | 
+                            <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
+                            <b>Date:</b> {row['Application Date']}
                         </div>
                         <div class="patent-snippet">{row['Abstract in English']}</div>
                     </div>
@@ -283,19 +288,19 @@ else:
             if res.empty: st.info("No records.")
             else:
                 res['Display_Label'] = res.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
-                choice_label = st.selectbox("SELECT FILE", res['Display_Label'].unique())
+                choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res['Display_Label'].unique())
                 choice_number = choice_label.split(" | ")[0]
                 row = res[res['Application Number'] == choice_number].iloc[0]
                 
                 st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
                 
-                st.markdown('<div class="section-header enriched-banner">Enriched Intelligence</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
                 e_cols = [c for c, t in col_map.items() if t == "Enriched"]
                 ec = st.columns(3)
                 for i, c in enumerate(e_cols):
-                    with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:2px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:4px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
                 
-                st.markdown('<div class="section-header raw-banner">Source Data</div>', unsafe_allow_html=True)
+                st.markdown('<div class="section-header raw-banner">Raw Source Data</div>', unsafe_allow_html=True)
                 r_cols = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English", "Application Type (ID)"]]
                 rc = st.columns(3)
                 for i, c in enumerate(r_cols):
@@ -304,16 +309,16 @@ else:
                 st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
                 st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
 
-    # --- 6. STRATEGIC ANALYSIS ---
+    # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     else:
         st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
-        tabs = st.tabs(["GROWTH", "FIRMS", "STRENGTHS", "STRATEGIC MAP", "IPC", "AVERAGES", "MONTHLY", "HISTOGRAM"])
+        tabs = st.tabs(["App Type Growth", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
 
         with tabs[0]:
             growth = df_f.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
             fig = px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600)
             st.plotly_chart(fix_chart(fig), use_container_width=True)
-            st.markdown("### GROWTH MATRIX")
+            st.subheader("Growth Summary Table")
             st.dataframe(growth.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
 
         with tabs[1]:
@@ -324,23 +329,23 @@ else:
             
             c1, c2 = st.columns([1,1])
             with c1:
-                sel_all_firms = st.checkbox("All Firms", key="all_firms_check")
-                selected_firms = st.multiselect("Firms", all_firms, default=top_firms_list[:5] if not sel_all_firms else all_firms)
+                sel_all_firms = st.checkbox("Select All Firms", key="all_firms_check")
+                selected_firms = st.multiselect("Select Firms:", all_firms, default=top_firms_list[:5] if not sel_all_firms else all_firms)
                 if sel_all_firms: selected_firms = all_firms
             with c2:
-                sel_all_years = st.checkbox("All Years", value=True, key="all_years_check_firm")
-                selected_years = st.multiselect("Years", available_years, default=available_years if sel_all_years else [available_years[0]])
+                sel_all_years = st.checkbox("Select All Years", value=True, key="all_years_check_firm")
+                selected_years = st.multiselect("Select Years:", available_years, default=available_years if sel_all_years else [available_years[0]])
                 if sel_all_years: selected_years = available_years
 
             if selected_firms and selected_years:
                 firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
-                st.markdown("### FIRM VOLUME RANKING")
+                st.markdown("### Firm Rank by Application Volume")
                 st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                 
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
                 fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
-                st.markdown("### ANNUAL FIRM VOLUME")
+                st.subheader("Firm Annual Volume Matrix")
                 st.dataframe(firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0), use_container_width=True)
 
         with tabs[2]:
@@ -349,15 +354,15 @@ else:
                 firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
                 fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
-                st.markdown("### FIRM TECH-CLASS DISTRIBUTION")
+                st.subheader("Tech-Class Distribution per Firm")
                 st.dataframe(firm_ipc.pivot(index='Firm', columns='IPC_Class3', values='Count').fillna(0).astype(int), use_container_width=True)
 
         with tabs[3]:
             land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
             fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
             st.plotly_chart(fix_chart(fig), use_container_width=True)
-            st.markdown("### IPC STRATEGIC DENSITY")
-            st.dataframe(land_data.rename(columns={'Application Number': 'Total Apps', 'Firm': 'Agents'}).sort_values('Total Apps', ascending=False), use_container_width=True, hide_index=True)
+            st.subheader("IPC Class Strategic Density")
+            st.dataframe(land_data.rename(columns={'Application Number': 'Total Apps', 'Firm': 'Unique Agents'}).sort_values('Total Apps', ascending=False), use_container_width=True, hide_index=True)
 
         with tabs[4]:
             ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
@@ -368,14 +373,14 @@ else:
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years = sorted(df_f['Year'].unique())
             c1, c2, c3 = st.columns(3)
-            with c1: target_ipc = st.selectbox("IPC Class", ["ALL IPC"] + unique_3char, key="ma_ipc")
+            with c1: target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
             with c2:
-                sel_all_ma_years = st.checkbox("All Years Range", value=True, key="all_years_ma")
-                ma_years = st.multiselect("Range", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
+                sel_all_ma_years = st.checkbox("Select All Years", value=True, key="all_years_ma")
+                ma_years = st.multiselect("Years Range:", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
                 if sel_all_ma_years: ma_years = all_av_years
             with c3:
                 all_available_types = sorted(df_f['Application Type (ID)'].unique())
-                selected_ma_types = st.multiselect("Visible Types", all_available_types, default=all_available_types)
+                selected_ma_types = st.multiselect("Visible Application Types:", all_available_types, default=all_available_types)
 
             analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
             work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
@@ -390,12 +395,12 @@ else:
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=col_name))
+                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}'))
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
             else: st.warning("Insufficient data.")
 
         with tabs[6]:
-            sel_year = st.selectbox("Year Selector", sorted(df_f['Year'].unique(), reverse=True))
+            sel_year = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True))
             yr_data = df_f[df_f['Year'] == sel_year]
             m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             counts = yr_data.groupby('Month_Name').size().reindex(m_order, fill_value=0).reset_index(name='Apps')
@@ -403,16 +408,16 @@ else:
             st.plotly_chart(fix_chart(fig), use_container_width=True)
 
         with tabs[7]:
-            st.markdown("### IPC GROWTH HISTOGRAM")
+            st.markdown("### IPC Growth Histogram")
             unique_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years_hist = sorted(df_exp_f['Year'].unique())
             hc1, hc2 = st.columns(2)
             with hc1:
-                all_ipc_trigger = st.checkbox("Select All IPC", value=False)
-                selected_ipc_hist = st.multiselect("IPC Classes", unique_ipc_list, default=unique_ipc_list[:3] if not all_ipc_trigger else unique_ipc_list)
+                all_ipc_trigger = st.checkbox("SELECT ALL IPC IN HISTOGRAM", value=False)
+                selected_ipc_hist = st.multiselect("Select IPC Classes:", unique_ipc_list, default=unique_ipc_list[:3] if not all_ipc_trigger else unique_ipc_list)
             with hc2:
-                sel_all_hist_years = st.checkbox("All Histogram Years", value=True, key="all_years_hist")
-                hist_years = st.multiselect("Years", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
+                sel_all_hist_years = st.checkbox("Select All Years", value=True, key="all_years_hist")
+                hist_years = st.multiselect("Select Years:", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
             
             if selected_ipc_hist and hist_years:
                 hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
