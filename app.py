@@ -5,6 +5,7 @@ import re
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import hmac
 from datetime import datetime
 
 # --- 1. PAGE CONFIG & KYRIX LUXURY THEME ---
@@ -32,22 +33,17 @@ st.markdown("""
         color: #F1F5F9 !important;
     }
 
-    /* THE TABLE FIX: Targeting Dataframes and Tables specifically for Light Mode override */
-    [data-testid="stDataFrame"], [data-testid="stTable"], .stDataFrame, div[class^="st-key-"] {
+    /* THE TABLE FIX: Force Dark Background on all Dataframes */
+    [data-testid="stDataFrame"], [data-testid="stTable"], .stDataFrame {
         background-color: #111827 !important;
     }
     
-    /* Targeting the internal glide-data-editor (Streamlit 1.30+) */
+    /* Target the modern Streamlit Data Editor canvas */
     [data-testid="data-grid-canvas"] {
         filter: invert(90%) hue-rotate(180deg) brightness(1.2);
     }
     
-    /* Legacy Table Styles */
-    table { background-color: #111827 !important; color: white !important; }
-    th { background-color: #1E293B !important; color: #F59E0B !important; }
-    td { background-color: #111827 !important; color: #F1F5F9 !important; }
-
-    /* Input Fields, Dropdowns, and Multiselects */
+    /* Input Fields, Dropdowns, and Multiselects - Fix for Light Mode */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="input"] > div,
     .stMultiSelect div, 
@@ -108,13 +104,24 @@ st.markdown("""
     }
     .enriched-banner { background: #1E40AF !important; color: #FFFFFF !important; }
     .raw-banner { background: #1E293B !important; color: #CBD5E1 !important; }
-    
+    .title-banner { background: #1E293B !important; border: 1px solid #F59E0B !important; color: #F59E0B !important; }
+
     .data-card { 
         background-color: #111827 !important; padding: 16px; 
         border: 1px solid #1F2937 !important;
     }
     .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; }
     .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; }
+    
+    .abstract-container {
+        background-color: #1E293B !important; padding: 30px; border-radius: 0 0 12px 12px;
+        border: 1px solid #334155 !important; border-top: none !important;
+        line-height: 1.8; font-size: 17px; color: #E2E8F0 !important; text-align: justify;
+    }
+    .type-badge {
+        background-color: #F59E0B !important; color: #0F172A !important; padding: 4px 12px; 
+        border-radius: 4px; font-weight: 800; font-size: 12px; margin-left: 10px;
+    }
     
     /* General Text Readability */
     label, p, h1, h2, h3, h4, h5, h6, .stMarkdown {
@@ -123,6 +130,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# Helper function to fix Plotly background and font colors
 def fix_chart(fig):
     fig.update_layout(
         template="plotly_dark",
@@ -184,6 +192,11 @@ def load_and_preprocess_all():
 
 df_search, col_map, df_main, df_exp = load_and_preprocess_all()
 
+def get_logo():
+    for ext in ["png", "jpg", "jpeg"]:
+        if os.path.exists(f"logo.{ext}"): return f"logo.{ext}"
+    return None
+
 # --- 3. SECURITY GATE ---
 if "auth" not in st.session_state: st.session_state.auth = False
 
@@ -191,6 +204,8 @@ if not st.session_state.auth:
     st.write("<br><br>", unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 1.2, 1])
     with col2:
+        logo = get_logo()
+        if logo: st.image(logo, use_container_width=True)
         st.markdown('<div style="background:#1E293B; padding:40px; border-radius:4px; border:1px solid #F59E0B; text-align:center;">', unsafe_allow_html=True)
         st.markdown("<h3 style='color:white; letter-spacing:2px;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
@@ -203,8 +218,10 @@ if not st.session_state.auth:
 else:
     # --- 4. NAVIGATION & SIDEBAR ---
     with st.sidebar:
-        st.markdown("<h2 style='letter-spacing:2px;'>KYRIX</h2>", unsafe_allow_html=True)
-        app_mode = st.radio("SYSTEM MODE", ["Intelligence Search", "Strategic Analysis"])
+        logo = get_logo()
+        if logo: st.image(logo)
+        st.markdown("<h2 style='letter-spacing:2px;'>SYSTEM MODE</h2>", unsafe_allow_html=True)
+        app_mode = st.radio("SELECT VIEW", ["Intelligence Search", "Strategic Analysis"])
         st.markdown("---")
 
         if app_mode == "Intelligence Search":
@@ -270,7 +287,7 @@ else:
                 choice_number = choice_label.split(" | ")[0]
                 row = res[res['Application Number'] == choice_number].iloc[0]
                 
-                st.markdown(f"## {row['Title in English']}", unsafe_allow_html=True)
+                st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
                 
                 st.markdown('<div class="section-header enriched-banner">Enriched Intelligence</div>', unsafe_allow_html=True)
                 e_cols = [c for c, t in col_map.items() if t == "Enriched"]
@@ -284,7 +301,8 @@ else:
                 for i, c in enumerate(r_cols):
                     with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
                 
-                st.markdown(f"<div class='section-header' style='background:#111827;'>Abstract</div><div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
+                st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
+                st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
 
     # --- 6. STRATEGIC ANALYSIS ---
     else:
