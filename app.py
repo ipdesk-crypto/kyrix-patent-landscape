@@ -15,114 +15,121 @@ st.set_page_config(
     layout="wide"
 )
 
-# FORCE DARK THEME & PROFESSIONAL UI (Overrides System Settings)
+# FORCE DARK THEME & PROFESSIONAL UI - HARD OVERRIDE
 st.markdown("""
     <style>
-    /* Force high-contrast dark theme regardless of system settings */
-    :root {
-        --primary-color: #F59E0B;
-        --background-color: #0F172A;
-        --secondary-background-color: #1E293B;
-        --text-color: #F1F5F9;
-        --font: 'sans serif';
-    }
-    
-    .stApp {
+    /* Force the main app background */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
         background-color: #0F172A !important;
         color: #F1F5F9 !important;
     }
 
-    /* Force Sidebar Dark */
-    section[data-testid="stSidebar"] {
+    /* Force Sidebar to stay Dark */
+    [data-testid="stSidebar"] {
         background-color: #020617 !important;
-        border-right: 1px solid #1E293B;
+        border-right: 1px solid #1E293B !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: #F1F5F9 !important;
+    }
+
+    /* Fix visibility of Tabs in Light Mode */
+    button[data-baseweb="tab"] {
+        color: #94A3B8 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #F59E0B !important;
+        border-bottom-color: #F59E0B !important;
+    }
+
+    /* Force Dataframe and Tables to Dark */
+    [data-testid="stDataFrame"], [data-testid="stTable"], .element-container div {
+        color: #F1F5F9 !important;
     }
     
-    /* Global Background and Text */
-    .main { background-color: #0F172A !important; }
-    
-    /* Force Dataframe into Dark Mode */
-    [data-testid="stDataFrame"] {
+    /* Input Fields styling */
+    .stTextInput>div>div>input, .stSelectbox>div>div>div {
         background-color: #1E293B !important;
+        color: white !important;
         border: 1px solid #334155 !important;
-        border-radius: 8px;
     }
 
     /* Professional Google-style Patent Card */
     .patent-card {
-        background-color: #111827;
-        border: 1px solid #1F2937;
+        background-color: #111827 !important;
+        border: 1px solid #1F2937 !important;
         border-radius: 10px;
         padding: 20px;
         margin-bottom: 15px;
         transition: transform 0.2s, border-color 0.2s;
     }
     .patent-card:hover {
-        border-color: #3B82F6;
+        border-color: #3B82F6 !important;
         transform: translateY(-2px);
     }
     .patent-title { color: #3B82F6 !important; font-size: 18px; font-weight: 700; text-decoration: none; margin-bottom: 5px; display: block; }
     .patent-meta { color: #94A3B8 !important; font-size: 13px; margin-bottom: 10px; }
-    .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-    .patent-tag { background: #1E293B; color: #F59E0B !important; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-right: 5px; }
+    .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.5; }
+    .patent-tag { background: #1E293B !important; color: #F59E0B !important; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
 
     /* Custom Metric Badges */
     .metric-badge {
-        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+        background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
         color: #F59E0B !important;
         padding: 15px 30px;
         border-radius: 12px;
         font-weight: 800; font-size: 20px;
-        border: 1px solid #334155;
+        border: 1px solid #334155 !important;
         display: inline-block; margin-bottom: 20px;
     }
-    
-    /* Inputs */
-    .stTextInput>div>div>input { background-color: #1E293B !important; color: white !important; border: 1px solid #334155 !important; }
     
     .section-header {
         font-size: 14px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
         padding: 15px 20px; border-radius: 8px 8px 0 0; margin-top: 30px;
-        border: 1px solid #475569; border-bottom: none;
+        border: 1px solid #475569 !important; border-bottom: none !important;
     }
-    .enriched-banner { background: linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%); color: #FFFFFF !important; }
-    .raw-banner { background: linear-gradient(90deg, #1E293B 0%, #334155 100%); color: #CBD5E1 !important; }
-    .title-banner { background: #1E293B; border: 1px solid #F59E0B; color: #F59E0B !important; }
+    .enriched-banner { background: linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%) !important; color: #FFFFFF !important; }
+    .raw-banner { background: linear-gradient(90deg, #1E293B 0%, #334155 100%) !important; color: #CBD5E1 !important; }
+    .title-banner { background: #1E293B !important; border: 1px solid #F59E0B !important; color: #F59E0B !important; }
     
     .data-card { 
-        background-color: #111827; padding: 16px; 
-        border: 1px solid #1F2937; border-bottom: 1px solid #374151;
+        background-color: #111827 !important; padding: 16px; 
+        border: 1px solid #1F2937 !important; border-bottom: 1px solid #374151 !important;
         min-height: 80px;
     }
-    .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-    .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; line-height: 1.4; }
+    .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; }
+    .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; }
     
     .abstract-container {
-        background-color: #1E293B; padding: 30px; border-radius: 0 0 12px 12px;
-        border: 1px solid #334155; border-top: none;
+        background-color: #1E293B !important; padding: 30px; border-radius: 0 0 12px 12px;
+        border: 1px solid #334155 !important; border-top: none !important;
         line-height: 1.8; font-size: 17px; color: #E2E8F0 !important; text-align: justify;
     }
     .type-badge {
-        background-color: #F59E0B; color: #0F172A !important; padding: 4px 12px; 
+        background-color: #F59E0B !important; color: #0F172A !important; padding: 4px 12px; 
         border-radius: 4px; font-weight: 800; font-size: 12px; margin-left: 10px;
     }
-
-    .metric-card-kyrix {
-        background-color: #111827; border-radius: 15px; padding: 25px;
-        text-align: center; border-bottom: 6px solid #F59E0B;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px;
-    }
-    .metric-label-kyrix { color: #F59E0B !important; font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-    .metric-value-kyrix { color: #ffffff !important; font-size: 2.5em; font-weight: 900; font-family: 'Courier New', monospace; }
     
-    /* Fix for Tabs */
-    button[data-baseweb="tab"] { color: #94A3B8 !important; }
-    button[aria-selected="true"] { color: #F59E0B !important; border-bottom-color: #F59E0B !important; }
+    /* Readability: Force labels and titles to white */
+    label, p, h1, h2, h3, .stMarkdown {
+        color: #F1F5F9 !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. DATA & SEARCH ENGINES ---
+# Helper function to fix Plotly background and font colors
+def fix_chart(fig):
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#F1F5F9"),
+        xaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
+        yaxis=dict(gridcolor="#1E293B", linecolor="#334155")
+    )
+    return fig
 
+# --- 2. DATA & SEARCH ENGINES ---
 def boolean_search(df, query):
     if not query: return pd.Series([True] * len(df))
     def check_row(row_str):
@@ -148,31 +155,25 @@ def boolean_search(df, query):
 def load_and_preprocess_all():
     path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
     if not os.path.exists(path): return None, None, None, None
-    
     df_raw = pd.read_csv(path, header=0)
     category_row = df_raw.iloc[0] 
     col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
-    
     df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
-    
     df = df_search.copy()
     df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce')
     df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce')
     df = df.dropna(subset=['AppDate', 'PriorityDate'])
-    
     df['Year'] = df['AppDate'].dt.year
     df['Month_Name'] = df['AppDate'].dt.month_name()
     df['Arrival_Month'] = df['AppDate'].dt.to_period('M').dt.to_timestamp()
     df['Priority_Month'] = df['PriorityDate'].dt.to_period('M').dt.to_timestamp()
     df['Firm'] = df['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
-    
     df['IPC_Raw'] = df['Classification'].astype(str).str.split(',')
     df_exp = df.explode('IPC_Raw')
     df_exp['IPC_Clean'] = df_exp['IPC_Raw'].str.strip().str.upper()
     df_exp = df_exp[~df_exp['IPC_Clean'].str.contains("NO CLASSIFICATION|NAN|NONE|-", na=False)]
     df_exp['IPC_Class3'] = df_exp['IPC_Clean'].str[:3] 
     df_exp['IPC_Section'] = df_exp['IPC_Clean'].str[:1]
-    
     return df_search, col_map, df, df_exp
 
 df_search, col_map, df_main, df_exp = load_and_preprocess_all()
@@ -191,7 +192,7 @@ if not st.session_state.auth:
     with col2:
         logo = get_logo()
         if logo: st.image(logo, use_container_width=True)
-        st.markdown('<div style="background:#1E293B; padding:40px; border-radius:12px; border:1px solid #334155; text-align:center;">', unsafe_allow_html=True)
+        st.markdown('<div style="background:#1E293B; padding:40px; border-radius:12px; border:1px solid #F59E0B; text-align:center;">', unsafe_allow_html=True)
         st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
@@ -247,7 +248,7 @@ else:
         with tab_list:
             if res.empty: st.info("No records match your query.")
             else:
-                for idx, row in res.head(50).iterrows(): # Limit to 50 for performance
+                for idx, row in res.head(50).iterrows():
                     st.markdown(f"""
                     <div class="patent-card">
                         <div class="patent-title">{row['Title in English']}</div>
@@ -296,11 +297,10 @@ else:
 
         with tabs[0]:
             growth = df_f.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-            fig0 = px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600, template="plotly_dark")
-            st.plotly_chart(fig0, use_container_width=True)
+            fig = px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600)
+            st.plotly_chart(fix_chart(fig), use_container_width=True)
             st.subheader("📊 Growth Summary Table")
-            growth_pivot = growth.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int)
-            st.dataframe(growth_pivot, use_container_width=True)
+            st.dataframe(growth.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
 
         with tabs[1]:
             df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
@@ -321,45 +321,40 @@ else:
             if selected_firms and selected_years:
                 firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
                 st.markdown("### 🏆 Firm Rank by Application Volume")
-                rank_df = firm_sub['Firm'].value_counts().reset_index()
-                rank_df.columns = ['Firm', 'Total Apps']
-                st.dataframe(rank_df, use_container_width=True, hide_index=True)
+                st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                 
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
-                fig1 = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600, template="plotly_dark")
-                st.plotly_chart(fig1, use_container_width=True)
+                fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600)
+                st.plotly_chart(fix_chart(fig), use_container_width=True)
                 st.subheader("📊 Firm Annual Volume Matrix")
-                firm_summary = firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0)
-                st.dataframe(firm_summary, use_container_width=True)
+                st.dataframe(firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0), use_container_width=True)
 
         with tabs[2]:
             df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
             if 'selected_firms' in locals() and selected_firms:
                 firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
-                fig2 = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600, template="plotly_dark")
-                st.plotly_chart(fig2, use_container_width=True)
+                fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
+                st.plotly_chart(fix_chart(fig), use_container_width=True)
                 st.subheader("📊 Tech-Class Distribution per Firm")
-                tech_pivot = firm_ipc.pivot(index='Firm', columns='IPC_Class3', values='Count').fillna(0).astype(int)
-                st.dataframe(tech_pivot, use_container_width=True)
+                st.dataframe(firm_ipc.pivot(index='Firm', columns='IPC_Class3', values='Count').fillna(0).astype(int), use_container_width=True)
 
         with tabs[3]:
             land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
-            fig3 = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600, template="plotly_dark")
-            st.plotly_chart(fig3, use_container_width=True)
+            fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
+            st.plotly_chart(fix_chart(fig), use_container_width=True)
             st.subheader("📊 IPC Class Strategic Density")
             st.dataframe(land_data.rename(columns={'Application Number': 'Total Apps', 'Firm': 'Unique Agents'}).sort_values('Total Apps', ascending=False), use_container_width=True, hide_index=True)
 
         with tabs[4]:
             ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
-            fig4 = px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600, template="plotly_dark")
-            st.plotly_chart(fig4, use_container_width=True)
+            fig = px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600)
+            st.plotly_chart(fix_chart(fig), use_container_width=True)
 
         with tabs[5]:
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years = sorted(df_f['Year'].unique())
             c1, c2, c3 = st.columns(3)
-            with c1:
-                target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
+            with c1: target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
             with c2:
                 sel_all_ma_years = st.checkbox("Select All Years", value=True, key="all_years_ma")
                 ma_years = st.multiselect("Years Range:", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
@@ -370,7 +365,6 @@ else:
 
             analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
             work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
-            
             work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].isin(selected_ma_types))]
             analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].isin(selected_ma_types))]
 
@@ -382,34 +376,17 @@ else:
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    fig.add_trace(go.Scatter(
-                        x=type_ma.index, 
-                        y=type_ma[col_name], 
-                        mode='lines+markers', 
-                        name=f'Type: {col_name}',
-                        line=dict(width=3)
-                    ))
-                fig.update_layout(
-                    template="plotly_dark", 
-                    paper_bgcolor="#0F172A",
-                    plot_bgcolor="#0F172A",
-                    title=f"12-Month Moving Average: {target_ipc}", 
-                    xaxis_title="Timeline", 
-                    yaxis_title="Trend Value (Avg Apps/Mo)",
-                    showlegend=True,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("Insufficient data for the selected range/types.")
+                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}'))
+                st.plotly_chart(fix_chart(fig), use_container_width=True)
+            else: st.warning("Insufficient data.")
 
         with tabs[6]:
             sel_year = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True))
             yr_data = df_f[df_f['Year'] == sel_year]
             m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             counts = yr_data.groupby('Month_Name').size().reindex(m_order, fill_value=0).reset_index(name='Apps')
-            fig6 = px.bar(counts, x='Month_Name', y='Apps', text='Apps', height=600, template="plotly_dark")
-            st.plotly_chart(fig6, use_container_width=True)
+            fig = px.bar(counts, x='Month_Name', y='Apps', text='Apps', height=600)
+            st.plotly_chart(fix_chart(fig), use_container_width=True)
 
         with tabs[7]:
             st.markdown("### 📊 IPC Growth Histogram")
@@ -418,23 +395,14 @@ else:
             hc1, hc2 = st.columns(2)
             with hc1:
                 all_ipc_trigger = st.checkbox("SELECT ALL IPC IN HISTOGRAM", value=False)
-                selected_ipc_hist = st.multiselect(
-                    "Select IPC Classes to Compare:", 
-                    unique_ipc_list, 
-                    default=unique_ipc_list[:3] if not all_ipc_trigger else unique_ipc_list
-                )
-                if all_ipc_trigger: selected_ipc_hist = unique_ipc_list
-                
+                selected_ipc_hist = st.multiselect("Select IPC Classes:", unique_ipc_list, default=unique_ipc_list[:3] if not all_ipc_trigger else unique_ipc_list)
             with hc2:
                 sel_all_hist_years = st.checkbox("Select All Years", value=True, key="all_years_hist")
                 hist_years = st.multiselect("Select Years:", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
-                if sel_all_hist_years: hist_years = all_av_years_hist
-                
+            
             if selected_ipc_hist and hist_years:
                 hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
                 hist_growth = hist_data.groupby(['Year', 'IPC_Class3']).size().reset_index(name='Apps')
-                fig_hist = px.bar(hist_growth, x='Year', y='Apps', color='IPC_Class3', barmode='group', text='Apps', template="plotly_dark", height=600)
-                st.plotly_chart(fig_hist, use_container_width=True)
-                st.subheader("📊 IPC Distribution Matrix")
-                hist_pivot = hist_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int)
-                st.dataframe(hist_pivot, use_container_width=True)
+                fig_hist = px.bar(hist_growth, x='Year', y='Apps', color='IPC_Class3', barmode='group', text='Apps', height=600)
+                st.plotly_chart(fix_chart(fig_hist), use_container_width=True)
+                st.dataframe(hist_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
