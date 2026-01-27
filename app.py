@@ -279,9 +279,11 @@ else:
             st.dataframe(growth_pivot, use_container_width=True)
 
         with tabs[1]:
-            all_firms = sorted(df_f['Firm'].unique())
-            top_firms_list = df_f['Firm'].value_counts().nlargest(10).index.tolist()
-            available_years = sorted(df_f['Year'].unique(), reverse=True)
+            # FILTER: Remove Direct Filing from analytics view
+            df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
+            all_firms = sorted(df_firms_only['Firm'].unique())
+            top_firms_list = df_firms_only['Firm'].value_counts().nlargest(10).index.tolist()
+            available_years = sorted(df_firms_only['Year'].unique(), reverse=True)
             
             c1, c2 = st.columns([1,1])
             with c1:
@@ -294,7 +296,7 @@ else:
                 if sel_all_years: selected_years = available_years
 
             if selected_firms and selected_years:
-                firm_sub = df_f[(df_f['Firm'].isin(selected_firms)) & (df_f['Year'].isin(selected_years))]
+                firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
                 st.markdown("### 🏆 Firm Rank by Application Volume")
                 rank_df = firm_sub['Firm'].value_counts().reset_index()
                 rank_df.columns = ['Firm', 'Total Apps']
@@ -307,8 +309,10 @@ else:
                 st.dataframe(firm_summary, use_container_width=True)
 
         with tabs[2]:
+            # FILTER: Remove Direct Filing from tech-strength view
+            df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
             if 'selected_firms' in locals() and selected_firms:
-                firm_ipc = df_exp_f[df_exp_f['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
+                firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
                 st.plotly_chart(px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600, template="plotly_dark"), use_container_width=True)
                 st.subheader("📊 Tech-Class Distribution per Firm")
                 tech_pivot = firm_ipc.pivot(index='Firm', columns='IPC_Class3', values='Count').fillna(0).astype(int)
@@ -335,14 +339,12 @@ else:
                 ma_years = st.multiselect("Years Range:", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
                 if sel_all_ma_years: ma_years = all_av_years
             with c3:
-                # NEW: Choose which types to see in the graph
                 all_available_types = sorted(df_f['Application Type (ID)'].unique())
                 selected_ma_types = st.multiselect("Visible Application Types:", all_available_types, default=all_available_types)
 
             analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
             work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
             
-            # Filtering by selected years and types
             work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].isin(selected_ma_types))]
             analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].isin(selected_ma_types))]
 
@@ -351,12 +353,10 @@ else:
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
                 
-                # Reindex and calculate Moving Average
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).mean()
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    # MULTILAYERED: Changed to lines with Legend enabled
                     fig.add_trace(go.Scatter(
                         x=type_ma.index, 
                         y=type_ma[col_name], 
@@ -390,7 +390,6 @@ else:
             all_av_years_hist = sorted(df_exp_f['Year'].unique())
             hc1, hc2 = st.columns(2)
             with hc1:
-                # NEW: Option to see ALL IPC
                 all_ipc_trigger = st.checkbox("SELECT ALL IPC IN HISTOGRAM", value=False)
                 selected_ipc_hist = st.multiselect(
                     "Select IPC Classes to Compare:", 
