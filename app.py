@@ -36,10 +36,12 @@ st.markdown("""
         padding: 20px;
         margin-bottom: 15px;
         transition: transform 0.2s, border-color 0.2s;
+        cursor: pointer;
     }
     .patent-card:hover {
         border-color: #3B82F6;
         transform: translateY(-2px);
+        background-color: #1e293b;
     }
     .patent-title { color: #3B82F6; font-size: 18px; font-weight: 700; text-decoration: none; margin-bottom: 5px; display: block; }
     .patent-meta { color: #94A3B8; font-size: 13px; margin-bottom: 10px; }
@@ -87,14 +89,6 @@ st.markdown("""
         background-color: #F59E0B; color: #0F172A; padding: 4px 12px; 
         border-radius: 4px; font-weight: 800; font-size: 12px; margin-left: 10px;
     }
-
-    .metric-card-kyrix {
-        background-color: #111827; border-radius: 15px; padding: 25px;
-        text-align: center; border-bottom: 6px solid #F59E0B;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px;
-    }
-    .metric-label-kyrix { color: #F59E0B; font-size: 1.1em; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-    .metric-value-kyrix { color: #ffffff; font-size: 2.5em; font-weight: 900; font-family: 'Courier New', monospace; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -159,6 +153,10 @@ def get_logo():
         if os.path.exists(f"logo.{ext}"): return f"logo.{ext}"
     return None
 
+# Initialize Session States for Navigation
+if "selected_patent_no" not in st.session_state: st.session_state.selected_patent_no = None
+if "active_tab" not in st.session_state: st.session_state.active_tab = "📄 SEARCH OVERVIEW"
+
 # --- 3. SECURITY GATE ---
 if "auth" not in st.session_state: st.session_state.auth = False
 
@@ -189,17 +187,18 @@ else:
         if app_mode == "🔍 Intelligence Search":
             st.markdown("### 🔍 GLOBAL COMMAND")
             global_query = st.text_input("GOOGLE PATENT STYLE SEARCH", placeholder="e.g. AI AND Hydrogen")
-            st.markdown("### 🛠️ FILTERS")
+            
+            st.markdown("### 🛠️ MULTI-FIELD PRIOR ART SEARCH")
             field_filters = {}
+            # Primary Filters
             field_filters['Title in English'] = st.text_input("Search in Title")
             field_filters['Abstract in English'] = st.text_input("Search in Abstract")
-            other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
-            for field in other_fields:
-                field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
-            with st.expander("Show All Other Columns"):
+            
+            # Advanced Filter Expander for ALL columns
+            with st.expander("➕ Advanced Power Filters (All Fields)"):
                 for col in df_search.columns:
-                    if col not in other_fields and col not in ['Abstract in English', 'Title in English']:
-                        val = st.text_input(col, key=f"ex_{col}")
+                    if col not in ['Abstract in English', 'Title in English']:
+                        val = st.text_input(f"Filter: {col}", key=f"filter_{col}")
                         if val: field_filters[col] = val
         else:
             st.markdown("### 📊 ANALYTICS FILTERS")
@@ -209,22 +208,37 @@ else:
             df_exp_f = df_exp[df_exp['Application Type (ID)'].isin(selected_types)]
             st.success(f"Records Analyzed: {len(df_f)}")
 
-        if st.button("RESET SYSTEM"): st.rerun()
+        if st.button("RESET SYSTEM"): 
+            st.session_state.selected_patent_no = None
+            st.rerun()
 
     # --- 5. MODE: SEARCH ENGINE ---
     if app_mode == "🔍 Intelligence Search":
+        # Apply Logic: Boolean Global + Field specific (AND logic between filters)
         mask = boolean_search(df_search, global_query)
         for field, f_query in field_filters.items():
             if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
         res = df_search[mask]
         
         st.markdown(f'<div class="metric-badge">● {len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
-        tab_list, tab_grid, tab_dossier = st.tabs(["📄 SEARCH OVERVIEW", "📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW"])
         
-        with tab_list:
+        # Tabs Logic
+        tab_names = ["📄 SEARCH OVERVIEW", "📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW"]
+        # If user clicked a patent, we force the dossier tab
+        if st.session_state.selected_patent_no:
+            st.session_state.active_tab = "🔍 PATENT DOSSIER VIEW"
+
+        tabs = st.tabs(tab_names)
+        
+        with tabs[0]:
             if res.empty: st.info("No records match your query.")
             else:
-                for idx, row in res.head(50).iterrows(): # Limit to 50 for performance
+                for idx, row in res.head(50).iterrows():
+                    # Create a clickable container using a button styled as a card or a link
+                    if st.button(f"VIEW DOSSIER: {row['Application Number']}", key=f"btn_{row['Application Number']}", use_container_width=True):
+                        st.session_state.selected_patent_no = row['Application Number']
+                        st.rerun()
+
                     st.markdown(f"""
                     <div class="patent-card">
                         <div class="patent-title">{row['Title in English']}</div>
@@ -238,14 +252,22 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-        with tab_grid:
+        with tabs[1]:
             st.dataframe(res, use_container_width=True, hide_index=True)
         
-        with tab_dossier:
+        with tabs[2]:
             if res.empty: st.info("No records.")
             else:
                 res['Display_Label'] = res.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
-                choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res['Display_Label'].unique())
+                
+                # Determine default index for selectbox
+                default_idx = 0
+                if st.session_state.selected_patent_no:
+                    matching_rows = res[res['Application Number'] == st.session_state.selected_patent_no]
+                    if not matching_rows.empty:
+                        default_idx = res.index.get_loc(matching_rows.index[0])
+
+                choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res['Display_Label'].unique(), index=default_idx)
                 choice_number = choice_label.split(" | ")[0]
                 row = res[res['Application Number'] == choice_number].iloc[0]
                 
@@ -365,14 +387,20 @@ else:
             unique_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years_hist = sorted(df_exp_f['Year'].unique())
             hc1, hc2 = st.columns(2)
+            
             with hc1:
-                selected_ipc_hist = st.multiselect("Select IPC Classes to Compare:", unique_ipc_list, default=unique_ipc_list[:3])
+                selected_ipc_hist = st.multiselect("Select IPC Classes to Compare:", ["ALL IPC"] + unique_ipc_list, default=[unique_ipc_list[0]])
             with hc2:
                 sel_all_hist_years = st.checkbox("Select All Years", value=True, key="all_years_hist")
                 hist_years = st.multiselect("Select Years:", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
                 if sel_all_hist_years: hist_years = all_av_years_hist
+            
             if selected_ipc_hist and hist_years:
-                hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
+                if "ALL IPC" in selected_ipc_hist:
+                    hist_data = df_exp_f[df_exp_f['Year'].isin(hist_years)]
+                else:
+                    hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
+                
                 hist_growth = hist_data.groupby(['Year', 'IPC_Class3']).size().reset_index(name='Apps')
                 fig_hist = px.bar(hist_growth, x='Year', y='Apps', color='IPC_Class3', barmode='group', text='Apps', template="plotly_dark", height=600)
                 st.plotly_chart(fig_hist, use_container_width=True)
