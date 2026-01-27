@@ -5,22 +5,22 @@ import re
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import hmac
 from datetime import datetime
 
-# --- 1. PAGE CONFIG & RESTORED LUXURY THEME ---
+# --- 1. PAGE CONFIG & PERSISTENT LUXURY DARK THEME ---
 st.set_page_config(
     page_title="Kyrix | Intangible Patent Landscape",
     page_icon="🛡️",
     layout="wide"
 )
 
+# Force Dark Theme across all devices (Boss-proof)
 st.markdown("""
     <style>
     .main, .stApp { background-color: #0F172A !important; color: #F1F5F9; }
-    
     [data-testid="stDataFrame"] { background-color: #1E293B !important; border: 1px solid #334155 !important; }
-
+    
+    /* Professional Google-style Patent Card */
     .patent-card {
         background-color: #111827; border: 1px solid #1F2937; border-radius: 10px;
         padding: 20px; margin-bottom: 15px; transition: all 0.3s ease;
@@ -38,6 +38,7 @@ st.markdown("""
         display: inline-block; margin-bottom: 20px;
     }
     
+    /* Dossier Styling */
     .section-header {
         font-size: 14px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
         padding: 15px 20px; border-radius: 8px 8px 0 0; margin-top: 30px; border: 1px solid #475569;
@@ -56,7 +57,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. DATA UTILITIES ---
-
 @st.cache_data
 def load_and_preprocess_all():
     path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
@@ -120,56 +120,59 @@ if not st.session_state.auth:
             else: st.error("INVALID KEY")
         st.markdown('</div>', unsafe_allow_html=True)
 else:
-    # --- 4. NAVIGATION ---
+    # --- 4. SIDEBAR NAVIGATION ---
     with st.sidebar:
         st.markdown("## 🛡️ SYSTEM MODE")
         app_mode = st.radio("SELECT VIEW:", ["🔍 Intelligence Search", "📈 Strategic Analysis"])
         st.markdown("---")
         if app_mode == "🔍 Intelligence Search":
-            global_query = st.text_input("GOOGLE PATENT STYLE SEARCH", placeholder="e.g. AI AND Hydrogen")
-            field_filters = {'Title in English': st.text_input("Search in Title"), 'Abstract in English': st.text_input("Search in Abstract")}
+            global_query = st.text_input("GLOBAL SEARCH (BOOLEAN)", placeholder="AI AND Hydrogen")
+            f_title = st.text_input("Filter by Title")
+            f_abstract = st.text_input("Filter by Abstract")
         else:
             all_types = sorted(df_main['Application Type (ID)'].unique())
             selected_types = st.multiselect("Select Application Types:", all_types, default=all_types)
             df_f = df_main[df_main['Application Type (ID)'].isin(selected_types)]
             df_exp_f = df_exp[df_exp['Application Type (ID)'].isin(selected_types)]
 
-    # --- 5. SEARCH ENGINE (ALL FUNCTIONALITY INTACT) ---
+    # --- 5. SEARCH MODE (Restored Interactivity) ---
     if app_mode == "🔍 Intelligence Search":
         mask = boolean_search(df_search, global_query)
-        for field, f_query in field_filters.items():
-            if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
+        if f_title: mask &= df_search['Title in English'].str.contains(f_title, case=False, na=False)
+        if f_abstract: mask &= df_search['Abstract in English'].str.contains(f_abstract, case=False, na=False)
         res = df_search[mask]
         
         st.markdown(f'<div class="metric-badge">● {len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
         
+        # Save Search to PDF/CSV
         csv = res.to_csv(index=False).encode('utf-8')
-        st.download_button("📂 SAVE SEARCH RESULTS (CSV)", data=csv, file_name=f"Kyrix_Search_{datetime.now().strftime('%Y%m%d')}.csv")
+        st.download_button("📂 SAVE SEARCH RESULTS", data=csv, file_name=f"Kyrix_Search_{datetime.now().strftime('%Y%m%d')}.csv")
 
-        tab_list, tab_grid, tab_dossier = st.tabs(["📄 SEARCH OVERVIEW", "📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW"])
+        tabs = st.tabs(["📄 SEARCH OVERVIEW", "📋 DATABASE GRID", "🔍 PATENT DOSSIER VIEW"])
         
-        with tab_list:
-            if res.empty: st.info("No records match your query.")
+        with tabs[0]:
+            if res.empty: st.info("No records.")
             else:
-                for idx, row in res.head(25).iterrows():
-                    st.markdown(f"""
-                    <div class="patent-card">
-                        <div class="patent-title">{row['Title in English']}</div>
-                        <div class="patent-meta">
-                            <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
-                            <b>App No:</b> {row['Application Number']} | <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']}
+                for idx, row in res.head(30).iterrows():
+                    with st.container():
+                        st.markdown(f"""
+                        <div class="patent-card">
+                            <div class="patent-title">{row['Title in English']}</div>
+                            <div class="patent-meta">
+                                <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
+                                <b>App:</b> {row['Application Number']} | <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']}
+                            </div>
+                            <div class="patent-snippet">{row['Abstract in English'][:350]}...</div>
                         </div>
-                        <div class="patent-snippet">{row['Abstract in English'][:350]}...</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if st.button(f"Open Dossier: {row['Application Number']}", key=f"btn_{row['Application Number']}"):
-                        st.session_state.selected_patent = row['Application Number']
-                        st.success("Target loaded in Dossier Tab.")
+                        """, unsafe_allow_html=True)
+                        if st.button(f"Analyze Dossier: {row['Application Number']}", key=f"btn_{row['Application Number']}"):
+                            st.session_state.selected_patent = row['Application Number']
+                            st.rerun()
 
-        with tab_grid:
+        with tabs[1]:
             st.dataframe(res, use_container_width=True, hide_index=True)
         
-        with tab_dossier:
+        with tabs[2]:
             if not res.empty:
                 res['Display_Label'] = res['Application Number'] + " | " + res['Title in English'].str[:50]
                 idx = 0
@@ -184,34 +187,36 @@ else:
                 st.markdown(f"<div class='ai-container'>Strategic Focus: {row['Classification'][:4]}. Key Innovation: Optimization of technical processes to enhance efficiency.</div>", unsafe_allow_html=True)
                 
                 st.markdown('<div class="section-header enriched-banner">Enriched Intelligence</div>', unsafe_allow_html=True)
-                cols = st.columns(3); enriched = [c for c, t in col_map.items() if t == "Enriched"]
+                ecols = st.columns(3); enriched = [c for c, t in col_map.items() if t == "Enriched"]
                 for i, c in enumerate(enriched):
-                    with cols[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    with ecols[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                
                 st.markdown('<div class="section-header raw-banner">Source Data</div>', unsafe_allow_html=True)
                 raws = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English"]]
-                cols2 = st.columns(3)
+                rcols = st.columns(3)
                 for i, c in enumerate(raws):
-                    with cols2[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    with rcols[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                
                 st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
                 st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
 
-    # --- 6. STRATEGIC MODE (RESTORED ALL TABS) ---
+    # --- 6. STRATEGIC MODE (Restored 8 Tabs + Radar) ---
     else:
         st.markdown('<div class="metric-badge">📈 STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
         tabs = st.tabs(["📈 Growth", "🏢 Firm Intel", "🔬 Tech-Strengths", "🎯 STRATEGIC MAP", "📊 IPC Class", "📉 Moving Avg", "📅 Monthly", "📊 IPC Histogram", "🎯 RADAR"])
 
         with tabs[0]:
             growth = df_f.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-            st.plotly_chart(px.line(growth, x='Year', y='Count', color='Application Type (ID)', template="plotly_dark"), use_container_width=True)
+            st.plotly_chart(px.line(growth, x='Year', y='Count', color='Application Type (ID)', template="plotly_dark", height=600), use_container_width=True)
 
         with tabs[1]:
             all_firms = sorted(df_f['Firm'].unique())
             c1, c2 = st.columns(2)
             with c1: 
-                f_all = st.checkbox("Select All Firms", key="f_all")
+                f_all = st.checkbox("Select All Firms")
                 f_sel = st.multiselect("Firms:", all_firms, default=all_firms[:5] if not f_all else all_firms)
             with c2:
-                y_all = st.checkbox("Select All Years", value=True, key="y_all")
+                y_all = st.checkbox("Select All Years", value=True)
                 y_sel = st.multiselect("Years:", sorted(df_f['Year'].unique()), default=sorted(df_f['Year'].unique()) if y_all else [])
             if f_sel and y_sel:
                 sub = df_f[(df_f['Firm'].isin(f_sel)) & (df_f['Year'].isin(y_sel))]
@@ -219,30 +224,30 @@ else:
 
         with tabs[2]:
             firm_ipc = df_exp_f.groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
-            st.plotly_chart(px.bar(firm_ipc.head(50), x='Count', y='Firm', color='IPC_Class3', orientation='h', template="plotly_dark"), use_container_width=True)
+            st.plotly_chart(px.bar(firm_ipc.head(50), x='Count', y='Firm', color='IPC_Class3', orientation='h', template="plotly_dark", height=700), use_container_width=True)
 
         with tabs[3]:
             land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
-            st.plotly_chart(px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', template="plotly_dark"), use_container_width=True)
+            st.plotly_chart(px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', template="plotly_dark", height=600), use_container_width=True)
 
         with tabs[4]:
-            st.plotly_chart(px.bar(df_exp_f.groupby('IPC_Section').size().reset_index(name='Count'), x='IPC_Section', y='Count', template="plotly_dark"), use_container_width=True)
+            ipc_sec = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count')
+            st.plotly_chart(px.bar(ipc_sec, x='IPC_Section', y='Count', color='IPC_Section', template="plotly_dark"), use_container_width=True)
 
         with tabs[5]:
             unique_ipc = sorted(df_exp_f['IPC_Class3'].unique())
             target = st.selectbox("Target IPC:", ["ALL IPC"] + unique_ipc)
-            ma_all_y = st.checkbox("Analyze All Years", value=True, key="ma_y_all")
-            ma_y = sorted(df_f['Year'].unique()) if ma_all_y else [st.selectbox("Year:", sorted(df_f['Year'].unique()))]
+            ma_y = sorted(df_f['Year'].unique())
             work = df_exp_f[df_exp_f['Year'].isin(ma_y)]
             if target != "ALL IPC": work = work[work['IPC_Class3'] == target]
             if not work.empty:
                 full_range = pd.date_range(start=f"{min(ma_y)}-01-01", end=f"{max(ma_y)}-12-31", freq='MS')
                 pivot = work.groupby(['Priority_Month', 'Application Type (ID)']).size().unstack(fill_value=0)
                 ma_final = pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).mean()
-                st.plotly_chart(px.area(ma_final, template="plotly_dark", title="12M Moving Average"), use_container_width=True)
+                st.plotly_chart(px.area(ma_final, template="plotly_dark", title=f"12M Moving Average: {target}"), use_container_width=True)
 
         with tabs[6]:
-            sel_year = st.selectbox("Year:", sorted(df_f['Year'].unique(), reverse=True))
+            sel_year = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True))
             m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             counts = df_f[df_f['Year'] == sel_year].groupby('Month_Name').size().reindex(m_order, fill_value=0).reset_index(name='Apps')
             st.plotly_chart(px.bar(counts, x='Month_Name', y='Apps', template="plotly_dark"), use_container_width=True)
@@ -250,10 +255,10 @@ else:
         with tabs[7]:
             hc1, hc2 = st.columns(2)
             with hc1:
-                h_all_ipc = st.checkbox("Select All IPCs", key="h_all_ipc")
+                h_all_ipc = st.checkbox("Select All IPCs", value=False)
                 h_ipc = st.multiselect("IPCs:", unique_ipc, default=unique_ipc[:5] if not h_all_ipc else unique_ipc)
             with hc2:
-                h_all_y = st.checkbox("Select All Years", value=True, key="h_all_y")
+                h_all_y = st.checkbox("Select All Years", value=True, key="h_yr")
                 h_y = st.multiselect("Years:", sorted(df_f['Year'].unique()), default=sorted(df_f['Year'].unique()) if h_all_y else [])
             if h_ipc and h_y:
                 h_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(h_ipc)) & (df_exp_f['Year'].isin(h_y))]
@@ -261,12 +266,12 @@ else:
 
         with tabs[8]:
             st.markdown("### 🎯 COMPETITIVE TECH RADAR")
-            comp_firms = st.multiselect("Firms for Radar:", sorted(df_f['Firm'].unique()), default=sorted(df_f['Firm'].unique())[:2])
+            comp_firms = st.multiselect("Select Firms for Radar Comparison:", sorted(df_f['Firm'].unique()), default=sorted(df_f['Firm'].unique())[:2])
             if comp_firms:
                 radar_data = df_exp_f[df_exp_f['Firm'].isin(comp_firms)].groupby(['Firm', 'IPC_Section']).size().reset_index(name='Count')
                 fig_radar = go.Figure()
                 for f in comp_firms:
-                    subset = radar_pivot = radar_data[radar_data['Firm'] == f]
+                    subset = radar_data[radar_data['Firm'] == f]
                     fig_radar.add_trace(go.Scatterpolar(r=subset['Count'], theta=subset['IPC_Section'], fill='toself', name=f))
-                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, gridcolor="#334155")), template="plotly_dark")
+                fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, gridcolor="#334155")), template="plotly_dark", height=600)
                 st.plotly_chart(fig_radar, use_container_width=True)
