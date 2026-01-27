@@ -15,16 +15,13 @@ st.set_page_config(
     layout="wide"
 )
 
-# TOTAL DARK MODE OVERRIDE - Targeting Light Mode browser settings
+# TOTAL DARK MODE OVERRIDE
 st.markdown("""
     <style>
-    /* 1. Global Reset - Force background and text color */
     html, body, [data-testid="stAppViewContainer"], .main, [data-testid="stHeader"] {
         background-color: #0F172A !important;
         color: #F1F5F9 !important;
     }
-
-    /* 2. Sidebar - Force dark regardless of theme */
     [data-testid="stSidebar"] {
         background-color: #020617 !important;
         border-right: 1px solid #1E293B !important;
@@ -32,8 +29,6 @@ st.markdown("""
     [data-testid="stSidebar"] * {
         color: #F1F5F9 !important;
     }
-
-    /* 3. Dropdowns, Multiselects, and Inputs - The 'White Box' Fix */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="input"] > div,
     .stMultiSelect div, 
@@ -43,27 +38,19 @@ st.markdown("""
         color: white !important;
         border-color: #334155 !important;
     }
-    
-    /* Multiselect chips (the selected items) */
     span[data-baseweb="tag"] {
         background-color: #3B82F6 !important;
         color: white !important;
     }
-
-    /* 4. Dataframes and Tables - Forcing Dark Cells */
     [data-testid="stDataFrame"], [data-testid="stTable"] {
         background-color: #111827 !important;
         border: 1px solid #1F2937 !important;
     }
-    
-    /* Target the actual cells inside the dataframe */
     .styled-table, [data-testid="stTable"] td, [data-testid="stTable"] th {
         background-color: #111827 !important;
         color: #F1F5F9 !important;
         border: 1px solid #1F2937 !important;
     }
-
-    /* 5. Tabs - Fix visibility */
     button[data-baseweb="tab"] {
         color: #94A3B8 !important;
     }
@@ -71,8 +58,6 @@ st.markdown("""
         color: #F59E0B !important;
         border-bottom-color: #F59E0B !important;
     }
-
-    /* 6. Professional Patent Cards */
     .patent-card {
         background-color: #111827 !important;
         border: 1px solid #1F2937 !important;
@@ -89,8 +74,6 @@ st.markdown("""
     .patent-meta { color: #94A3B8 !important; font-size: 13px; margin-bottom: 10px; }
     .patent-snippet { color: #CBD5E1 !important; font-size: 14px; line-height: 1.5; }
     .patent-tag { background: #1E293B !important; color: #F59E0B !important; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-
-    /* 7. Metric Badges and Headers */
     .metric-badge {
         background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%) !important;
         color: #F59E0B !important;
@@ -100,7 +83,6 @@ st.markdown("""
         border: 1px solid #334155 !important;
         display: inline-block; margin-bottom: 20px;
     }
-    
     .section-header {
         font-size: 14px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
         padding: 15px 20px; border-radius: 8px 8px 0 0; margin-top: 30px;
@@ -109,7 +91,6 @@ st.markdown("""
     .enriched-banner { background: linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%) !important; color: #FFFFFF !important; }
     .raw-banner { background: linear-gradient(90deg, #1E293B 0%, #334155 100%) !important; color: #CBD5E1 !important; }
     .title-banner { background: #1E293B !important; border: 1px solid #F59E0B !important; color: #F59E0B !important; }
-    
     .data-card { 
         background-color: #111827 !important; padding: 16px; 
         border: 1px solid #1F2937 !important; border-bottom: 1px solid #374151 !important;
@@ -117,7 +98,6 @@ st.markdown("""
     }
     .label-text { font-size: 10px; color: #94A3B8 !important; text-transform: uppercase; font-weight: 700; }
     .value-text { font-size: 15px; color: #F8FAFC !important; font-weight: 500; }
-    
     .abstract-container {
         background-color: #1E293B !important; padding: 30px; border-radius: 0 0 12px 12px;
         border: 1px solid #334155 !important; border-top: none !important;
@@ -127,15 +107,12 @@ st.markdown("""
         background-color: #F59E0B !important; color: #0F172A !important; padding: 4px 12px; 
         border-radius: 4px; font-weight: 800; font-size: 12px; margin-left: 10px;
     }
-    
-    /* General Text Readability */
     label, p, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #F1F5F9 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# Helper function to fix Plotly background and font colors
 def fix_chart(fig):
     fig.update_layout(
         template="plotly_dark",
@@ -144,7 +121,11 @@ def fix_chart(fig):
         font=dict(color="#F1F5F9"),
         xaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
         yaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
-        legend=dict(bgcolor="rgba(0,0,0,0)")
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            itemclick="toggle",
+            itemdoubleclick="toggleothers"
+        )
     )
     return fig
 
@@ -395,7 +376,9 @@ else:
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}'))
+                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}', showlegend=True))
+                
+                fig.update_layout(showlegend=True, legend=dict(title="Toggle Application Types"))
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
             else: st.warning("Insufficient data.")
 
