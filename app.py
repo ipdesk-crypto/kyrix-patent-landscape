@@ -193,7 +193,7 @@ if not st.session_state.auth:
         logo = get_logo()
         if logo: st.image(logo, use_container_width=True)
         st.markdown('<div style="background:#1E293B; padding:40px; border-radius:12px; border:1px solid #F59E0B; text-align:center;">', unsafe_allow_html=True)
-        st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE LANDSCAPE</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE PATENT LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
             if key in ["Kyrix2024", "LeoGiannotti2026!"]: 
