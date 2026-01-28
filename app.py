@@ -196,7 +196,7 @@ if not st.session_state.auth:
         st.markdown("<h3 style='color:white;'>KYRIX INTANGIBLE PATENT LANDSCAPE</h3>", unsafe_allow_html=True)
         key = st.text_input("SECURITY KEY", type="password")
         if st.button("AUTHORIZE SYSTEM"):
-            if key in ["Kyrix2024", "LeoGiannotti2026!"]: 
+            if key in ["LeoGiannotti2026!", "LeoGiannotti2026!"]: 
                 st.session_state.auth = True; st.rerun()
             else: st.error("INVALID KEY")
         st.markdown('</div>', unsafe_allow_html=True)
