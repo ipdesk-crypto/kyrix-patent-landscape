@@ -293,14 +293,43 @@ else:
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     else:
         st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
-        tabs = st.tabs(["App Type Growth", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
+        tabs = st.tabs(["APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
 
         with tabs[0]:
-            growth = df_f.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-            fig = px.line(growth, x='Year', y='Count', color='Application Type (ID)', markers=True, height=600)
-            st.plotly_chart(fix_chart(fig), use_container_width=True)
-            st.subheader("Growth Summary Table")
-            st.dataframe(growth.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
+            st.markdown("### 📊 Application Growth Intelligence")
+            
+            # Sub-filters for this tab
+            c1, c2 = st.columns(2)
+            with c1:
+                all_years_growth = sorted(df_f['Year'].unique(), reverse=True)
+                sel_years_growth = st.multiselect("Filter Years:", all_years_growth, default=all_years_growth)
+            with c2:
+                all_types_growth = sorted(df_f['Application Type (ID)'].unique())
+                sel_types_growth = st.multiselect("Filter Application Types:", all_types_growth, default=all_types_growth)
+            
+            # Apply local filters
+            df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].isin(sel_types_growth)]
+            
+            if not df_growth_filtered.empty:
+                # 1. Annual Histogram
+                growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
+                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', 
+                                 barmode='group', text='Count', title="Annual Application Volume (Histogram)")
+                st.plotly_chart(fix_chart(fig_year), use_container_width=True)
+                
+                # 2. Monthly Histogram
+                st.markdown("---")
+                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                growth_month = df_growth_filtered.groupby(['Month_Name', 'Application Type (ID)']).size().reset_index(name='Count')
+                fig_month = px.bar(growth_month, x='Month_Name', y='Count', color='Application Type (ID)', 
+                                  barmode='group', category_orders={"Month_Name": m_order},
+                                  text='Count', title="Seasonal Monthly Distribution (Histogram)")
+                st.plotly_chart(fix_chart(fig_month), use_container_width=True)
+
+                st.subheader("Growth Summary Table")
+                st.dataframe(growth_year.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
+            else:
+                st.warning("No data found for the selected filters.")
 
         with tabs[1]:
             df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
