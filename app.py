@@ -298,11 +298,30 @@ else:
         with tabs[0]:
             st.markdown("### 📊 Application Growth Intelligence")
             
-            # Sub-filters for this tab
-            c1, c2 = st.columns(2)
+            # --- UPDATED FILTER LOGIC ---
+            c1, c2, c3 = st.columns([1.5, 1, 1])
+            
+            all_years_growth = sorted(df_f['Year'].unique())
+            
             with c1:
-                all_years_growth = sorted(df_f['Year'].unique(), reverse=True)
-                sel_years_growth = st.multiselect("Filter Years:", all_years_growth, default=all_years_growth)
+                year_filter_mode = st.radio("Year Selection Mode:", ["Specific Years", "Year Range"], horizontal=True)
+                
+                if year_filter_mode == "Specific Years":
+                    sel_all_years_growth = st.checkbox("Select All Years", value=True)
+                    sel_years_growth = st.multiselect(
+                        "Choose Years:", 
+                        all_years_growth, 
+                        default=all_years_growth if sel_all_years_growth else [all_years_growth[-1]]
+                    )
+                else:
+                    year_range = st.slider(
+                        "Select Year Range:", 
+                        int(min(all_years_growth)), 
+                        int(max(all_years_growth)), 
+                        (int(min(all_years_growth)), int(max(all_years_growth)))
+                    )
+                    sel_years_growth = list(range(year_range[0], year_range[1] + 1))
+            
             with c2:
                 all_types_growth = sorted(df_f['Application Type (ID)'].unique())
                 sel_types_growth = st.multiselect("Filter Application Types:", all_types_growth, default=all_types_growth)
