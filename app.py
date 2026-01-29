@@ -170,13 +170,10 @@ def load_and_preprocess_all():
     df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce')
     df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce')
     df = df.dropna(subset=['AppDate', 'PriorityDate'])
-    
-    # SYSTEM-WIDE PRIORITY ALIGNMENT
-    df['Year'] = df['PriorityDate'].dt.year # Changed to PriorityDate Year
-    df['Month_Name'] = df['PriorityDate'].dt.month_name() # Changed to PriorityDate Month
+    df['Year'] = df['AppDate'].dt.year
+    df['Month_Name'] = df['AppDate'].dt.month_name()
     df['Arrival_Month'] = df['AppDate'].dt.to_period('M').dt.to_timestamp()
     df['Priority_Month'] = df['PriorityDate'].dt.to_period('M').dt.to_timestamp()
-    
     df['Firm'] = df['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
     df['IPC_Raw'] = df['Classification'].astype(str).str.split(',')
     df_exp = df.explode('IPC_Raw')
@@ -306,7 +303,7 @@ else:
         tabs = st.tabs(["APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
 
         with tabs[0]:
-            st.markdown("### 📊 Application Growth Intelligence (By Earliest Priority Date)")
+            st.markdown("### 📊 Application Growth Intelligence")
             
             c1, c2, c3 = st.columns([1.5, 1, 1])
             all_years_growth = sorted(df_f['Year'].unique())
@@ -327,27 +324,24 @@ else:
             df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].isin(sel_types_growth)]
             
             if not df_growth_filtered.empty:
-                # COMPUTE BASED ON PRIORITY DATE
                 growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Volume by Priority Year")
+                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Histogram)")
                 st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                 
                 st.markdown("---")
-                # COMPUTE BASED ON PRIORITY MONTH
-                growth_month_timeline = df_growth_filtered.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_month = px.bar(growth_month_timeline, x='Priority_Month', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Monthly Distribution by Priority Month")
+                growth_month_timeline = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='Count')
+                fig_month = px.bar(growth_month_timeline, x='Arrival_Month', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Monthly Distribution (Histogram)")
                 fig_month.update_xaxes(dtick="M1", tickformat="%b\n%Y")
                 st.plotly_chart(fix_chart(fig_month), use_container_width=True)
 
-                st.subheader("Monthly Distribution Summary Matrix (Priority Date)")
+                st.subheader("Monthly Distribution Summary Matrix")
                 m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                # Matrix based on Priority Dates
-                monthly_matrix = df_growth_filtered.groupby([df_growth_filtered['Priority_Month'].dt.year.rename('Year'), df_growth_filtered['Priority_Month'].dt.month_name().rename('Month')]).size().unstack(fill_value=0)
+                monthly_matrix = df_growth_filtered.groupby([df_growth_filtered['Arrival_Month'].dt.year.rename('Year'), df_growth_filtered['Arrival_Month'].dt.month_name().rename('Month')]).size().unstack(fill_value=0)
                 existing_months = [m for m in m_order if m in monthly_matrix.columns]
                 monthly_matrix = monthly_matrix[existing_months]
                 st.dataframe(monthly_matrix, use_container_width=True)
 
-                st.subheader("Growth Summary Table (Priority Year)")
+                st.subheader("Growth Summary Table")
                 st.dataframe(growth_year.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
             else:
                 st.warning("No data found for the selected filters.")
@@ -370,7 +364,7 @@ else:
 
             if selected_firms and selected_years:
                 firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
-                st.markdown("### Firm Rank by Priority Date Volume")
+                st.markdown("### Firm Rank by Application Volume")
                 st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
                 fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600)
@@ -435,7 +429,7 @@ else:
                         mode='lines',              
                         line=dict(shape='spline', width=3), 
                         name=f'Type: {col_name}', 
-                        fill='tozeroy',            
+                        fill='tozeroy',           
                         showlegend=True
                     ))
                 
@@ -448,60 +442,44 @@ else:
                 fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
                 fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
 
+                # --- NEW: SHORTHAND YEAR FORMAT AND VERTICAL YEAR GRID ---
                 fig.update_layout(
                     title="MOVING AVERAGE 12 MONTH WINDOW", 
                     showlegend=True, 
                     legend=dict(title="Legend"), 
                     xaxis_title="Priority Date Timeline",
                     xaxis=dict(
-                        tickformat="'%y", 
-                        dtick="M12", 
+                        tickformat="'%y",  # Converts 2024 to '24
+                        dtick="M12",       # Forces a tick for every year
                         showgrid=True,
-                        gridcolor="#334155", 
+                        gridcolor="#334155", # Visible vertical lines
                         gridwidth=1
                     )
                 )
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
-
-                st.markdown("---")
-                st.markdown("### 📅 Yearly Cumulative Volume (Jan-Dec)")
-                yearly_totals = analysis_df.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Total_Apps')
-                
-                fig_yearly_cum = px.line(
-                    yearly_totals, 
-                    x='Year', 
-                    y='Total_Apps', 
-                    color='Application Type (ID)',
-                    markers=True,
-                    title="TOTAL FILINGS PER CALENDAR YEAR (JAN-DEC)",
-                    line_shape='linear'
-                )
-                fig_yearly_cum.update_traces(line=dict(width=3), marker=dict(size=8))
-                fig_yearly_cum.update_layout(
-                    xaxis=dict(dtick=1, showgrid=True, gridcolor="#334155"),
-                    yaxis_title="Total Applications"
-                )
-                st.plotly_chart(fix_chart(fig_yearly_cum), use_container_width=True)
                 
                 st.markdown(f"""
                 <div class="report-box">
-                    <h4 style="color:#F59E0B; margin-top:0;">📋 LAG REPORT</h4>
+                    <h4 style="color:#F59E0B; margin-top:0;">📋 PUBLICATION LAG INTELLIGENCE REPORT</h4>
                     <p style="font-size:14px; color:#CBD5E1;">Based on the real-time date of <b>{current_time.strftime('%d %B %Y')}</b>, the following legal cutoffs apply to the data visibility above:</p>
                     <table style="width:100%; border-collapse: collapse; margin-top:10px;">
                         <tr style="border-bottom: 1px solid #1E293B;">
                             <th style="text-align:left; padding:8px; color:#94A3B8;">APPLICATION TYPE</th>
                             <th style="text-align:left; padding:8px; color:#94A3B8;">LAG PERIOD</th>
                             <th style="text-align:left; padding:8px; color:#94A3B8;">CRITICAL CUTOFF DATE</th>
+                            <th style="text-align:left; padding:8px; color:#94A3B8;">STATUS</th>
                         </tr>
                         <tr>
-                            <td style="padding:8px; font-weight:bold;">Type 4 & 5</td>
+                            <td style="padding:8px; font-weight:bold;">Type 4 & 5 (Utility/Design)</td>
                             <td style="padding:8px;">18 Months</td>
                             <td style="padding:8px; color:#F59E0B; font-weight:bold;">{cutoff_18.strftime('%d %B %Y')}</td>
+                            <td style="padding:8px; font-size:12px;">Data after this date is likely incomplete due to 18-month publication secrecy.</td>
                         </tr>
                         <tr>
-                            <td style="padding:8px; font-weight:bold;">Type 1</td>
+                            <td style="padding:8px; font-weight:bold;">Type 1 (Invention)</td>
                             <td style="padding:8px;">30 Months</td>
                             <td style="padding:8px; color:#EF4444; font-weight:bold;">{cutoff_30.strftime('%d %B %Y')}</td>
+                            <td style="padding:8px; font-size:12px;">Data after this date is incomplete for Invention patents (Standard PCT/National lag).</td>
                         </tr>
                     </table>
                     <p style="font-size:12px; color:#64748B; margin-top:15px;"><i>*This report updates automatically every 24 hours to maintain landscape accuracy.</i></p>
