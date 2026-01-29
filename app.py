@@ -170,10 +170,13 @@ def load_and_preprocess_all():
     df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce')
     df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce')
     df = df.dropna(subset=['AppDate', 'PriorityDate'])
-    df['Year'] = df['AppDate'].dt.year
-    df['Month_Name'] = df['AppDate'].dt.month_name()
+    
+    # SYSTEM-WIDE PRIORITY ALIGNMENT
+    df['Year'] = df['PriorityDate'].dt.year # Changed to PriorityDate Year
+    df['Month_Name'] = df['PriorityDate'].dt.month_name() # Changed to PriorityDate Month
     df['Arrival_Month'] = df['AppDate'].dt.to_period('M').dt.to_timestamp()
     df['Priority_Month'] = df['PriorityDate'].dt.to_period('M').dt.to_timestamp()
+    
     df['Firm'] = df['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
     df['IPC_Raw'] = df['Classification'].astype(str).str.split(',')
     df_exp = df.explode('IPC_Raw')
@@ -303,7 +306,7 @@ else:
         tabs = st.tabs(["APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
 
         with tabs[0]:
-            st.markdown("### 📊 Application Growth Intelligence")
+            st.markdown("### 📊 Application Growth Intelligence (By Earliest Priority Date)")
             
             c1, c2, c3 = st.columns([1.5, 1, 1])
             all_years_growth = sorted(df_f['Year'].unique())
@@ -324,24 +327,27 @@ else:
             df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].isin(sel_types_growth)]
             
             if not df_growth_filtered.empty:
+                # COMPUTE BASED ON PRIORITY DATE
                 growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Histogram)")
+                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Volume by Priority Year")
                 st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                 
                 st.markdown("---")
-                growth_month_timeline = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_month = px.bar(growth_month_timeline, x='Arrival_Month', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Monthly Distribution (Histogram)")
+                # COMPUTE BASED ON PRIORITY MONTH
+                growth_month_timeline = df_growth_filtered.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='Count')
+                fig_month = px.bar(growth_month_timeline, x='Priority_Month', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Monthly Distribution by Priority Month")
                 fig_month.update_xaxes(dtick="M1", tickformat="%b\n%Y")
                 st.plotly_chart(fix_chart(fig_month), use_container_width=True)
 
-                st.subheader("Monthly Distribution Summary Matrix")
+                st.subheader("Monthly Distribution Summary Matrix (Priority Date)")
                 m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                monthly_matrix = df_growth_filtered.groupby([df_growth_filtered['Arrival_Month'].dt.year.rename('Year'), df_growth_filtered['Arrival_Month'].dt.month_name().rename('Month')]).size().unstack(fill_value=0)
+                # Matrix based on Priority Dates
+                monthly_matrix = df_growth_filtered.groupby([df_growth_filtered['Priority_Month'].dt.year.rename('Year'), df_growth_filtered['Priority_Month'].dt.month_name().rename('Month')]).size().unstack(fill_value=0)
                 existing_months = [m for m in m_order if m in monthly_matrix.columns]
                 monthly_matrix = monthly_matrix[existing_months]
                 st.dataframe(monthly_matrix, use_container_width=True)
 
-                st.subheader("Growth Summary Table")
+                st.subheader("Growth Summary Table (Priority Year)")
                 st.dataframe(growth_year.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
             else:
                 st.warning("No data found for the selected filters.")
@@ -364,7 +370,7 @@ else:
 
             if selected_firms and selected_years:
                 firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
-                st.markdown("### Firm Rank by Application Volume")
+                st.markdown("### Firm Rank by Priority Date Volume")
                 st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
                 fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600)
@@ -457,10 +463,8 @@ else:
                 )
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-                # --- ADDED: YEARLY CUMULATIVE VOLUME GRAPH ---
                 st.markdown("---")
                 st.markdown("### 📅 Yearly Cumulative Volume (Jan-Dec)")
-                # Calculate absolute totals per year/type based on database values
                 yearly_totals = analysis_df.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Total_Apps')
                 
                 fig_yearly_cum = px.line(
