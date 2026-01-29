@@ -404,7 +404,7 @@ else:
             with c1: target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
             with c2:
                 sel_all_ma_years = st.checkbox("Select All Years", value=True, key="all_years_ma")
-                ma_years = st.multiselect("Years Range:", all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
+                ma_years = st.multiselect("Years Range:", ma_years if 'ma_years' in locals() else all_av_years, default=all_av_years if sel_all_ma_years else [all_av_years[-1]])
                 if sel_all_ma_years: ma_years = all_av_years
             with c3:
                 all_available_types = sorted(df_f['Application Type (ID)'].unique())
@@ -421,9 +421,18 @@ else:
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).sum()
                 
+                # --- UPDATED: SMOOTH AREA GRAPH ---
                 fig = go.Figure()
                 for col_name in type_ma.columns:
-                    fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}', showlegend=True))
+                    fig.add_trace(go.Scatter(
+                        x=type_ma.index, 
+                        y=type_ma[col_name], 
+                        mode='lines',              # REMOVED DOTS
+                        line=dict(shape='spline', width=3), # SMOOTHER SPLINE
+                        name=f'Type: {col_name}', 
+                        fill='tozeroy',           # COLORED AREA UNDER THE CURVE
+                        showlegend=True
+                    ))
                 
                 current_time = datetime.now()
                 cutoff_18 = current_time - pd.DateOffset(months=18)
@@ -434,10 +443,15 @@ else:
                 fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
                 fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
 
-                fig.update_layout(title="Moving Annual Total (Integral per 12-Month Window) by Earliest Priority", showlegend=True, legend=dict(title="Legend"), xaxis_title="Priority Date Timeline")
+                fig.update_layout(
+                    title="MOVING AVERAGE 12 MONTH WINDOW", # UPDATED TITLE
+                    showlegend=True, 
+                    legend=dict(title="Legend"), 
+                    xaxis_title="Priority Date Timeline"
+                )
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
                 
-                # --- NEW: AUTOMATED SMALL REPORT SECTION ---
+                # --- AUTOMATED SMALL REPORT SECTION ---
                 st.markdown(f"""
                 <div class="report-box">
                     <h4 style="color:#F59E0B; margin-top:0;">📋 PUBLICATION LAG INTELLIGENCE REPORT</h4>
