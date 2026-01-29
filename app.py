@@ -442,17 +442,16 @@ else:
                 fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
                 fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
 
-                # --- NEW: SHORTHAND YEAR FORMAT AND VERTICAL YEAR GRID ---
                 fig.update_layout(
                     title="MOVING AVERAGE 12 MONTH WINDOW", 
                     showlegend=True, 
                     legend=dict(title="Legend"), 
                     xaxis_title="Priority Date Timeline",
                     xaxis=dict(
-                        tickformat="'%y",  # Converts 2024 to '24
-                        dtick="M12",       # Forces a tick for every year
+                        tickformat="'%y",  
+                        dtick="M12",       
                         showgrid=True,
-                        gridcolor="#334155", # Visible vertical lines
+                        gridcolor="#334155", 
                         gridwidth=1
                     )
                 )
@@ -467,19 +466,16 @@ else:
                             <th style="text-align:left; padding:8px; color:#94A3B8;">APPLICATION TYPE</th>
                             <th style="text-align:left; padding:8px; color:#94A3B8;">LAG PERIOD</th>
                             <th style="text-align:left; padding:8px; color:#94A3B8;">CRITICAL CUTOFF DATE</th>
-                            <th style="text-align:left; padding:8px; color:#94A3B8;">STATUS</th>
                         </tr>
                         <tr>
-                            <td style="padding:8px; font-weight:bold;">Type 4 & 5 (Utility/Design)</td>
+                            <td style="padding:8px; font-weight:bold;">Type 4 & 5</td>
                             <td style="padding:8px;">18 Months</td>
                             <td style="padding:8px; color:#F59E0B; font-weight:bold;">{cutoff_18.strftime('%d %B %Y')}</td>
-                            <td style="padding:8px; font-size:12px;">Data after this date is likely incomplete due to 18-month publication secrecy.</td>
                         </tr>
                         <tr>
-                            <td style="padding:8px; font-weight:bold;">Type 1 (Invention)</td>
+                            <td style="padding:8px; font-weight:bold;">Type 1</td>
                             <td style="padding:8px;">30 Months</td>
                             <td style="padding:8px; color:#EF4444; font-weight:bold;">{cutoff_30.strftime('%d %B %Y')}</td>
-                            <td style="padding:8px; font-size:12px;">Data after this date is incomplete for Invention patents (Standard PCT/National lag).</td>
                         </tr>
                     </table>
                     <p style="font-size:12px; color:#64748B; margin-top:15px;"><i>*This report updates automatically every 24 hours to maintain landscape accuracy.</i></p>
