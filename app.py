@@ -419,6 +419,11 @@ else:
             st.plotly_chart(fix_chart(fig), use_container_width=True)
 
         with tabs[5]:
+            # --- UPDATED: Dynamic Recent Filing Date Header ---
+            most_recent_date = df_main['AppDate'].max()
+            date_str = most_recent_date.strftime('%d %B %Y') if pd.notnull(most_recent_date) else "N/A"
+            st.markdown(f'<div class="metric-badge" style="padding:10px 20px; font-size:16px;">Most Recent Filing Date in Database: {date_str}</div>', unsafe_allow_html=True)
+            
             unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
             all_av_years = sorted(df_f['Year'].unique())
             c1, c2, c3 = st.columns(3)
@@ -441,35 +446,38 @@ else:
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
                 
-                # UPDATED: Calculate Rolling Sum (Integral over 12 months) instead of Mean
+                # Calculate Rolling Sum (Integral over 12 months)
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).sum()
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
                     fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}', showlegend=True))
                 
-                # UPDATED: Add Vertical Cutting Lines for Publication Lags
-                # Calculation based on current date (or max date in data if live system is preferred, but using datetime.now for "waiting period" context)
-                current_date = datetime.now()
+                # --- UPDATED: Cutoff Lines based on REAL TIME (datetime.now()) ---
+                current_time = datetime.now()
+                cutoff_18 = current_time - pd.DateOffset(months=18)
+                cutoff_30 = current_time - pd.DateOffset(months=30)
                 
-                # 18 Months Cutoff (For Type 4 and 5)
-                cutoff_18 = current_date - pd.DateOffset(months=18)
-                fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
-                fig.add_annotation(x=cutoff_18, y=1, yref="paper", text="18-Month Lag (Types 4/5)", showarrow=False, font=dict(color="#F59E0B"), xanchor="right", textangle=-90)
+                # 1. Add Traces to the Legend for readability
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                                         line=dict(color="#F59E0B", dash="dash", width=2), 
+                                         name="18-Month Lag (Types 4/5)"))
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                                         line=dict(color="#EF4444", dash="dash", width=2), 
+                                         name="30-Month Lag (Type 1)"))
 
-                # 30 Months Cutoff (For Type 1)
-                cutoff_30 = current_date - pd.DateOffset(months=30)
+                # 2. Add Visual Vertical Lines
+                fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
                 fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
-                fig.add_annotation(x=cutoff_30, y=1, yref="paper", text="30-Month Lag (Type 1)", showarrow=False, font=dict(color="#EF4444"), xanchor="right", textangle=-90)
 
                 fig.update_layout(
                     title="Moving Annual Total (Integral per 12-Month Window) by Earliest Priority",
                     showlegend=True, 
-                    legend=dict(title="Toggle Application Types"),
+                    legend=dict(title="Legend"),
                     xaxis_title="Priority Date Timeline"
                 )
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
-                st.info("NOTE: Vertical dashed lines indicate publication delay cutoffs. Data to the right of lines may be incomplete due to the 18-month (Types 4/5) or 30-month (Type 1) publication waiting periods.")
+                st.info(f"NOTE: Vertical dashed lines indicate publication delay cutoffs relative to today ({current_time.strftime('%Y-%m-%d')}).")
             else: st.warning("Insufficient data.")
 
         with tabs[6]:
