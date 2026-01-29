@@ -6,7 +6,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import hmac
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. PAGE CONFIG & KYRIX LUXURY THEME ---
 st.set_page_config(
@@ -336,14 +336,34 @@ else:
                                  barmode='group', text='Count', title="Annual Application Volume (Histogram)")
                 st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                 
-                # 2. Monthly Histogram
+                # 2. Monthly Histogram (UPDATED: Continuous Timeline per Year)
                 st.markdown("---")
-                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                growth_month = df_growth_filtered.groupby(['Month_Name', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_month = px.bar(growth_month, x='Month_Name', y='Count', color='Application Type (ID)', 
-                                  barmode='group', category_orders={"Month_Name": m_order},
-                                  text='Count', title="Seasonal Monthly Distribution (Histogram)")
+                # Group by Year-Month (Arrival_Month) instead of just Month Name
+                growth_month_timeline = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='Count')
+                fig_month = px.bar(growth_month_timeline, x='Arrival_Month', y='Count', color='Application Type (ID)', 
+                                  barmode='stack', 
+                                  text='Count', title="Monthly Distribution (Histogram)")
+                # Update layout to handle date axis nicely
+                fig_month.update_xaxes(dtick="M1", tickformat="%b\n%Y")
                 st.plotly_chart(fix_chart(fig_month), use_container_width=True)
+
+                # 3. Summary Table for Monthly Distribution (UPDATED: Matrix)
+                st.subheader("Monthly Distribution Summary Matrix")
+                
+                # Create a pivot table: Index=Year, Columns=Month, Values=Count
+                # Ensure months are sorted chronologically
+                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                
+                monthly_matrix = df_growth_filtered.groupby([
+                    df_growth_filtered['Arrival_Month'].dt.year.rename('Year'), 
+                    df_growth_filtered['Arrival_Month'].dt.month_name().rename('Month')
+                ]).size().unstack(fill_value=0)
+                
+                # Reorder columns to follow calendar month order
+                existing_months = [m for m in m_order if m in monthly_matrix.columns]
+                monthly_matrix = monthly_matrix[existing_months]
+                
+                st.dataframe(monthly_matrix, use_container_width=True)
 
                 st.subheader("Growth Summary Table")
                 st.dataframe(growth_year.pivot(index='Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int), use_container_width=True)
@@ -420,14 +440,36 @@ else:
                 full_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
-                type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).mean()
+                
+                # UPDATED: Calculate Rolling Sum (Integral over 12 months) instead of Mean
+                type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).sum()
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
                     fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}', showlegend=True))
                 
-                fig.update_layout(showlegend=True, legend=dict(title="Toggle Application Types"))
+                # UPDATED: Add Vertical Cutting Lines for Publication Lags
+                # Calculation based on current date (or max date in data if live system is preferred, but using datetime.now for "waiting period" context)
+                current_date = datetime.now()
+                
+                # 18 Months Cutoff (For Type 4 and 5)
+                cutoff_18 = current_date - pd.DateOffset(months=18)
+                fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
+                fig.add_annotation(x=cutoff_18, y=1, yref="paper", text="18-Month Lag (Types 4/5)", showarrow=False, font=dict(color="#F59E0B"), xanchor="right", textangle=-90)
+
+                # 30 Months Cutoff (For Type 1)
+                cutoff_30 = current_date - pd.DateOffset(months=30)
+                fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
+                fig.add_annotation(x=cutoff_30, y=1, yref="paper", text="30-Month Lag (Type 1)", showarrow=False, font=dict(color="#EF4444"), xanchor="right", textangle=-90)
+
+                fig.update_layout(
+                    title="Moving Annual Total (Integral per 12-Month Window) by Earliest Priority",
+                    showlegend=True, 
+                    legend=dict(title="Toggle Application Types"),
+                    xaxis_title="Priority Date Timeline"
+                )
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
+                st.info("NOTE: Vertical dashed lines indicate publication delay cutoffs. Data to the right of lines may be incomplete due to the 18-month (Types 4/5) or 30-month (Type 1) publication waiting periods.")
             else: st.warning("Insufficient data.")
 
         with tabs[6]:
