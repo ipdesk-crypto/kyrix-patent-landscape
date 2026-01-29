@@ -110,6 +110,13 @@ st.markdown("""
     label, p, h1, h2, h3, h4, h5, h6, .stMarkdown {
         color: #F1F5F9 !important;
     }
+    .report-box {
+        background-color: #020617 !important;
+        border: 1px solid #334155 !important;
+        padding: 20px;
+        border-radius: 10px;
+        margin-top: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -298,71 +305,40 @@ else:
         with tabs[0]:
             st.markdown("### 📊 Application Growth Intelligence")
             
-            # --- UPDATED FILTER LOGIC ---
             c1, c2, c3 = st.columns([1.5, 1, 1])
-            
             all_years_growth = sorted(df_f['Year'].unique())
             
             with c1:
                 year_filter_mode = st.radio("Year Selection Mode:", ["Specific Years", "Year Range"], horizontal=True)
-                
                 if year_filter_mode == "Specific Years":
                     sel_all_years_growth = st.checkbox("Select All Years", value=True)
-                    sel_years_growth = st.multiselect(
-                        "Choose Years:", 
-                        all_years_growth, 
-                        default=all_years_growth if sel_all_years_growth else [all_years_growth[-1]]
-                    )
+                    sel_years_growth = st.multiselect("Choose Years:", all_years_growth, default=all_years_growth if sel_all_years_growth else [all_years_growth[-1]])
                 else:
-                    year_range = st.slider(
-                        "Select Year Range:", 
-                        int(min(all_years_growth)), 
-                        int(max(all_years_growth)), 
-                        (int(min(all_years_growth)), int(max(all_years_growth)))
-                    )
+                    year_range = st.slider("Select Year Range:", int(min(all_years_growth)), int(max(all_years_growth)), (int(min(all_years_growth)), int(max(all_years_growth))))
                     sel_years_growth = list(range(year_range[0], year_range[1] + 1))
             
             with c2:
                 all_types_growth = sorted(df_f['Application Type (ID)'].unique())
                 sel_types_growth = st.multiselect("Filter Application Types:", all_types_growth, default=all_types_growth)
             
-            # Apply local filters
             df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].isin(sel_types_growth)]
             
             if not df_growth_filtered.empty:
-                # 1. Annual Histogram
                 growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', 
-                                 barmode='group', text='Count', title="Annual Application Volume (Histogram)")
+                fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Histogram)")
                 st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                 
-                # 2. Monthly Histogram (UPDATED: Continuous Timeline per Year)
                 st.markdown("---")
-                # Group by Year-Month (Arrival_Month) instead of just Month Name
                 growth_month_timeline = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-                fig_month = px.bar(growth_month_timeline, x='Arrival_Month', y='Count', color='Application Type (ID)', 
-                                  barmode='stack', 
-                                  text='Count', title="Monthly Distribution (Histogram)")
-                # Update layout to handle date axis nicely
+                fig_month = px.bar(growth_month_timeline, x='Arrival_Month', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Monthly Distribution (Histogram)")
                 fig_month.update_xaxes(dtick="M1", tickformat="%b\n%Y")
                 st.plotly_chart(fix_chart(fig_month), use_container_width=True)
 
-                # 3. Summary Table for Monthly Distribution (UPDATED: Matrix)
                 st.subheader("Monthly Distribution Summary Matrix")
-                
-                # Create a pivot table: Index=Year, Columns=Month, Values=Count
-                # Ensure months are sorted chronologically
                 m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                
-                monthly_matrix = df_growth_filtered.groupby([
-                    df_growth_filtered['Arrival_Month'].dt.year.rename('Year'), 
-                    df_growth_filtered['Arrival_Month'].dt.month_name().rename('Month')
-                ]).size().unstack(fill_value=0)
-                
-                # Reorder columns to follow calendar month order
+                monthly_matrix = df_growth_filtered.groupby([df_growth_filtered['Arrival_Month'].dt.year.rename('Year'), df_growth_filtered['Arrival_Month'].dt.month_name().rename('Month')]).size().unstack(fill_value=0)
                 existing_months = [m for m in m_order if m in monthly_matrix.columns]
                 monthly_matrix = monthly_matrix[existing_months]
-                
                 st.dataframe(monthly_matrix, use_container_width=True)
 
                 st.subheader("Growth Summary Table")
@@ -390,7 +366,6 @@ else:
                 firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
                 st.markdown("### Firm Rank by Application Volume")
                 st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
-                
                 firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
                 fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
@@ -419,7 +394,6 @@ else:
             st.plotly_chart(fix_chart(fig), use_container_width=True)
 
         with tabs[5]:
-            # --- UPDATED: Dynamic Recent Filing Date Header ---
             most_recent_date = df_main['AppDate'].max()
             date_str = most_recent_date.strftime('%d %B %Y') if pd.notnull(most_recent_date) else "N/A"
             st.markdown(f'<div class="metric-badge" style="padding:10px 20px; font-size:16px;">Most Recent Filing Date in Database: {date_str}</div>', unsafe_allow_html=True)
@@ -445,39 +419,52 @@ else:
                 full_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
                 type_counts = analysis_df.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
                 type_pivot = type_counts.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
-                
-                # Calculate Rolling Sum (Integral over 12 months)
                 type_ma = type_pivot.reindex(full_range, fill_value=0).rolling(window=12, min_periods=1).sum()
                 
                 fig = go.Figure()
                 for col_name in type_ma.columns:
                     fig.add_trace(go.Scatter(x=type_ma.index, y=type_ma[col_name], mode='lines+markers', name=f'Type: {col_name}', showlegend=True))
                 
-                # --- UPDATED: Cutoff Lines based on REAL TIME (datetime.now()) ---
                 current_time = datetime.now()
                 cutoff_18 = current_time - pd.DateOffset(months=18)
                 cutoff_30 = current_time - pd.DateOffset(months=30)
                 
-                # 1. Add Traces to the Legend for readability
-                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
-                                         line=dict(color="#F59E0B", dash="dash", width=2), 
-                                         name="18-Month Lag (Types 4/5)"))
-                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
-                                         line=dict(color="#EF4444", dash="dash", width=2), 
-                                         name="30-Month Lag (Type 1)"))
-
-                # 2. Add Visual Vertical Lines
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", dash="dash", width=2), name="18-Month Lag (Types 4/5)"))
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", dash="dash", width=2), name="30-Month Lag (Type 1)"))
                 fig.add_vline(x=cutoff_18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
                 fig.add_vline(x=cutoff_30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
 
-                fig.update_layout(
-                    title="Moving Annual Total (Integral per 12-Month Window) by Earliest Priority",
-                    showlegend=True, 
-                    legend=dict(title="Legend"),
-                    xaxis_title="Priority Date Timeline"
-                )
+                fig.update_layout(title="Moving Annual Total (Integral per 12-Month Window) by Earliest Priority", showlegend=True, legend=dict(title="Legend"), xaxis_title="Priority Date Timeline")
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
-                st.info(f"NOTE: Vertical dashed lines indicate publication delay cutoffs relative to today ({current_time.strftime('%Y-%m-%d')}).")
+                
+                # --- NEW: AUTOMATED SMALL REPORT SECTION ---
+                st.markdown(f"""
+                <div class="report-box">
+                    <h4 style="color:#F59E0B; margin-top:0;">📋 PUBLICATION LAG INTELLIGENCE REPORT</h4>
+                    <p style="font-size:14px; color:#CBD5E1;">Based on the real-time date of <b>{current_time.strftime('%d %B %Y')}</b>, the following legal cutoffs apply to the data visibility above:</p>
+                    <table style="width:100%; border-collapse: collapse; margin-top:10px;">
+                        <tr style="border-bottom: 1px solid #1E293B;">
+                            <th style="text-align:left; padding:8px; color:#94A3B8;">APPLICATION TYPE</th>
+                            <th style="text-align:left; padding:8px; color:#94A3B8;">LAG PERIOD</th>
+                            <th style="text-align:left; padding:8px; color:#94A3B8;">CRITICAL CUTOFF DATE</th>
+                            <th style="text-align:left; padding:8px; color:#94A3B8;">STATUS</th>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px; font-weight:bold;">Type 4 & 5 (Utility/Design)</td>
+                            <td style="padding:8px;">18 Months</td>
+                            <td style="padding:8px; color:#F59E0B; font-weight:bold;">{cutoff_18.strftime('%d %B %Y')}</td>
+                            <td style="padding:8px; font-size:12px;">Data after this date is likely incomplete due to 18-month publication secrecy.</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px; font-weight:bold;">Type 1 (Invention)</td>
+                            <td style="padding:8px;">30 Months</td>
+                            <td style="padding:8px; color:#EF4444; font-weight:bold;">{cutoff_30.strftime('%d %B %Y')}</td>
+                            <td style="padding:8px; font-size:12px;">Data after this date is incomplete for Invention patents (Standard PCT/National lag).</td>
+                        </tr>
+                    </table>
+                    <p style="font-size:12px; color:#64748B; margin-top:15px;"><i>*This report updates automatically every 24 hours to maintain landscape accuracy.</i></p>
+                </div>
+                """, unsafe_allow_html=True)
             else: st.warning("Insufficient data.")
 
         with tabs[6]:
@@ -499,7 +486,6 @@ else:
             with hc2:
                 sel_all_hist_years = st.checkbox("Select All Years", value=True, key="all_years_hist")
                 hist_years = st.multiselect("Select Years:", all_av_years_hist, default=all_av_years_hist if sel_all_hist_years else [all_av_years_hist[-1]])
-            
             if selected_ipc_hist and hist_years:
                 hist_data = df_exp_f[(df_exp_f['IPC_Class3'].isin(selected_ipc_hist)) & (df_exp_f['Year'].isin(hist_years))]
                 hist_growth = hist_data.groupby(['Year', 'IPC_Class3']).size().reset_index(name='Apps')
