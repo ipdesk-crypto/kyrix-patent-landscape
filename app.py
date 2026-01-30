@@ -116,6 +116,7 @@ st.markdown("""
         padding: 20px;
         border-radius: 10px;
         margin-top: 20px;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -128,23 +129,16 @@ def fix_chart(fig):
         font=dict(color="#F1F5F9"),
         xaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
         yaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
-        legend=dict(
-            bgcolor="rgba(0,0,0,0)",
-            itemclick="toggle",
-            itemdoubleclick="toggleothers"
-        )
+        legend=dict(bgcolor="rgba(0,0,0,0)", itemclick="toggle", itemdoubleclick="toggleothers")
     )
     return fig
 
-# Helper to parse year input
 def parse_year_input(input_str, all_available_years):
-    if not input_str:
-        return all_available_years
+    if not input_str: return all_available_years
     try:
         years = [int(y.strip()) for y in input_str.split(',') if y.strip().isdigit()]
         return years if years else all_available_years
-    except:
-        return all_available_years
+    except: return all_available_years
 
 # --- 2. DATA & SEARCH ENGINES ---
 def boolean_search(df, query):
@@ -185,7 +179,6 @@ def load_and_preprocess_all():
         df_analysis = df.dropna(subset=['AppDate', 'PriorityDate']).copy()
         if not df_analysis.empty:
             df_analysis['Year'] = df_analysis['AppDate'].dt.year.astype(int)
-            # Use Priority Date for year-based strategic analysis as requested
             df_analysis['Priority_Year'] = df_analysis['PriorityDate'].dt.year.astype(int)
             df_analysis['Month_Name'] = df_analysis['PriorityDate'].dt.month_name()
             df_analysis['Arrival_Month'] = df_analysis['AppDate'].dt.to_period('M').dt.to_timestamp()
@@ -238,12 +231,9 @@ else:
             st.markdown("### GLOBAL COMMAND")
             global_query = st.text_input("GOOGLE PATENT STYLE SEARCH", placeholder="e.g. AI AND Hydrogen")
             st.markdown("### FILTERS")
-            field_filters = {}
-            field_filters['Title in English'] = st.text_input("Search in Title")
-            field_filters['Abstract in English'] = st.text_input("Search in Abstract")
+            field_filters = {'Title in English': st.text_input("Search in Title"), 'Abstract in English': st.text_input("Search in Abstract")}
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
-            for field in other_fields:
-                field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
+            for field in other_fields: field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
             if df_search is not None and not df_search.empty:
                 with st.expander("Show All Other Columns"):
                     for col in df_search.columns:
@@ -273,22 +263,10 @@ else:
                 if res.empty: st.info("No records match your query.")
                 else:
                     for idx, row in res.head(50).iterrows():
-                        st.markdown(f"""
-                        <div class="patent-card">
-                            <div class="patent-title">{row['Title in English']}</div>
-                            <div class="patent-meta">
-                                <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
-                                <b>App No:</b> {row['Application Number']} | 
-                                <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
-                                <b>Earliest Priority Date:</b> {row['Earliest Priority Date']}
-                            </div>
-                            <div class="patent-snippet">{row['Abstract in English']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        st.markdown(f'<div class="patent-card"><div class="patent-title">{row["Title in English"]}</div><div class="patent-meta"><span class="patent-tag">{row.get("Application Type (ID)", "N/A")}</span><b>App No:</b> {row["Application Number"]} | <b>Applicant:</b> {row["Data of Applicant - Legal Name in English"]} | <b>Earliest Priority Date:</b> {row["Earliest Priority Date"]}</div><div class="patent-snippet">{row["Abstract in English"]}</div></div>', unsafe_allow_html=True)
             with tab_grid: st.dataframe(res, use_container_width=True, hide_index=True)
             with tab_dossier:
-                if res.empty: st.info("No records.")
-                else:
+                if not res.empty:
                     res = res.copy()
                     res['Display_Label'] = res.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
                     choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res['Display_Label'].unique())
@@ -314,20 +292,28 @@ else:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
             tabs = st.tabs(["APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
             
-            # Shared Lag Info
+            # --- GLOBAL LAG CALCULATIONS & UI ---
             curr_time = datetime.now()
             c18 = curr_time - pd.DateOffset(months=18)
             c30 = curr_time - pd.DateOffset(months=30)
-            lag_report_html = f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT (Based on Current Date)</h4>
-                                Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>"""
+            lag_report_html = f"""<div class="report-box"><h4 style="color:#F59E0B; margin-top:0;">📋 PUBLICATION LAG REPORT (Based on Current Date)</h4>
+                                <b>Type 4 & 5 (18-Month Cutoff):</b> {c18.strftime('%d %B %Y')}<br>
+                                <b>Type 1 (30-Month Cutoff):</b> {c30.strftime('%d %B %Y')}</div>"""
+
+            def add_lag_elements(fig):
+                fig.add_vline(x=c18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
+                fig.add_vline(x=c30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
+                # Hidden traces to force legend entry
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(dash='dash', color='#F59E0B'), name='18m Lag (Type 4,5)'))
+                fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(dash='dash', color='#EF4444'), name='30m Lag (Type 1)'))
+                return fig
 
             with tabs[0]:
-                st.markdown("### 📊 Application Growth Intelligence (Priority Date Basis)")
+                st.markdown("### 📊 Application Growth Intelligence (Priority Date)")
                 st.markdown(lag_report_html, unsafe_allow_html=True)
                 
-                c1, c2, c3 = st.columns([1, 1, 1])
                 all_years_growth = sorted(df_f['Priority_Year'].unique())
-                
+                c1, c2, c3 = st.columns([1, 1, 1])
                 with c1:
                     year_input_growth = st.text_input("Type Years (comma separated):", value=", ".join(map(str, all_years_growth)))
                     typed_years = parse_year_input(year_input_growth, all_years_growth)
@@ -335,35 +321,25 @@ else:
                     range_years = st.slider("Select Year Range:", min(all_years_growth), max(all_years_growth), (min(all_years_growth), max(all_years_growth)))
                 with c3:
                     all_types_growth = sorted(df_f['Application Type (ID)'].unique())
-                    sel_types_growth = st.multiselect("Filter Application Types:", all_types_growth, default=all_types_growth, key="growth_types_sel")
+                    sel_types_growth = st.multiselect("Filter Types:", all_types_growth, default=all_types_growth, key="growth_types_sel")
                 
-                # Filter Logic
-                df_growth_filtered = df_f[
-                    (df_f['Priority_Year'].isin(typed_years)) & 
-                    (df_f['Priority_Year'].between(range_years[0], range_years[1])) &
-                    (df_f['Application Type (ID)'].isin(sel_types_growth))
-                ]
+                df_growth_filtered = df_f[(df_f['Priority_Year'].isin(typed_years)) & (df_f['Priority_Year'].between(range_years[0], range_years[1])) & (df_f['Application Type (ID)'].isin(sel_types_growth))]
                 
                 if not df_growth_filtered.empty:
                     st.subheader("Annual Priority Summary")
                     growth_year = df_growth_filtered.groupby(['Priority_Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     st.table(growth_year.pivot(index='Priority_Year', columns='Application Type (ID)', values='Count').fillna(0).astype(int))
 
-                    def add_lag_lines(fig):
-                        fig.add_vline(x=c18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B", annotation_text="18m Lag")
-                        fig.add_vline(x=c30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444", annotation_text="30m Lag")
-                        return fig
-
-                    # Grouped Bar
-                    fig_year = px.bar(growth_year, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Priority Volume (Grouped)")
+                    # 1. Annual Bar Histogram
+                    fig_year = px.bar(growth_year, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Volume (Priority Year)")
                     st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                     
-                    # Monthly Trend (Using Priority Month)
+                    # 2. Monthly Trend Histogram
                     monthly_trend = df_growth_filtered.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-                    fig_trend = px.line(monthly_trend, x='Priority_Month', y='Count', color='Application Type (ID)', title="Priority Filing Trend with Publication Lag Lines")
-                    st.plotly_chart(fix_chart(add_lag_lines(fig_trend)), use_container_width=True)
+                    fig_trend = px.line(monthly_trend, x='Priority_Month', y='Count', color='Application Type (ID)', title="Priority Filing Trend")
+                    st.plotly_chart(fix_chart(add_lag_elements(fig_trend)), use_container_width=True)
 
-                    st.markdown("---")
+                    # 3. Detail Filing Matrix
                     st.subheader("Filing Matrix")
                     m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
                     for yr in sorted(df_growth_filtered['Priority_Year'].unique(), reverse=True):
@@ -390,11 +366,7 @@ else:
                 with c3:
                     f_range = st.slider("Firm Year Range:", min(available_years), max(available_years), (min(available_years), max(available_years)))
                 
-                firm_sub = df_firms_only[
-                    (df_firms_only['Firm'].isin(selected_firms)) & 
-                    (df_firms_only['Priority_Year'].isin(typed_f_years)) &
-                    (df_firms_only['Priority_Year'].between(f_range[0], f_range[1]))
-                ]
+                firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Priority_Year'].isin(typed_f_years)) & (df_firms_only['Priority_Year'].between(f_range[0], f_range[1]))]
                 
                 if not firm_sub.empty:
                     st.markdown("#### Firm Yearly Summary Table")
@@ -441,12 +413,7 @@ else:
                     sel_ma_types = st.multiselect("Visible Types:", sorted(df_f['Application Type (ID)'].unique()), default=sorted(df_f['Application Type (ID)'].unique()))
                 
                 analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
-                work_df = df_f[
-                    (df_f['Application Number'].isin(analysis_df['Application Number'].unique())) &
-                    (df_f['Priority_Year'].isin(ma_typed)) &
-                    (df_f['Priority_Year'].between(ma_r[0], ma_r[1])) &
-                    (df_f['Application Type (ID)'].isin(sel_ma_types))
-                ]
+                work_df = df_f[(df_f['Application Number'].isin(analysis_df['Application Number'].unique())) & (df_f['Priority_Year'].isin(ma_typed)) & (df_f['Priority_Year'].between(ma_r[0], ma_r[1])) & (df_f['Application Type (ID)'].isin(sel_ma_types))]
                 
                 if not work_df.empty:
                     f_range = pd.date_range(start=f"{min(work_df['Priority_Year'])}-01-01", end=f"{max(work_df['Priority_Year'])}-12-31", freq='MS')
@@ -458,10 +425,7 @@ else:
                     for col in t_ma.columns:
                         fig.add_trace(go.Scatter(x=t_ma.index, y=t_ma[col], mode='lines', line=dict(shape='spline', width=3), name=f'Type: {col}', fill='tozeroy'))
                     
-                    fig.add_vline(x=c18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
-                    fig.add_vline(x=c30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
-                    st.plotly_chart(fix_chart(fig), use_container_width=True)
-                else: st.warning("Insufficient data.")
+                    st.plotly_chart(fix_chart(add_lag_elements(fig)), use_container_width=True)
 
             with tabs[6]:
                 sel_yr_m = st.selectbox("Choose Year:", sorted(df_f['Priority_Year'].unique(), reverse=True), key="m_tab_sel")
@@ -488,5 +452,3 @@ else:
                     fig_h = px.bar(h_growth, x='Priority_Year', y='Apps', color='IPC_Class3', barmode='group', text='Apps', height=600)
                     st.plotly_chart(fix_chart(fig_h), use_container_width=True)
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Priority_Year', values='Apps').fillna(0).astype(int), use_container_width=True)
-        else:
-            st.error("No valid data found.")
