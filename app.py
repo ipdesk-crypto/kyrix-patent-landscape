@@ -209,18 +209,24 @@ def load_and_preprocess_all():
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
         df = df_search.copy()
         
-        # --- PARSE DATES ---
-        df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce')
-        df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce')
+        # --- PARSE DATES (Enhanced with dayfirst=True for safety) ---
+        df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce', dayfirst=True)
+        df['PriorityDate'] = pd.to_datetime(df['Earliest Priority Date'], errors='coerce', dayfirst=True)
         
-        df_analysis = df.dropna(subset=['AppDate', 'PriorityDate']).copy()
+        # --- CRITICAL FIX: Only drop rows where AppDate is missing ---
+        # Do NOT drop rows if PriorityDate is missing, to preserve Application Counts
+        df_analysis = df.dropna(subset=['AppDate']).copy()
+        
         if not df_analysis.empty:
-            # --- CRITICAL CHANGE: ANALYSIS YEAR BASED ON APPLICATION DATE (FILING DATE) ---
+            # --- ANALYSIS YEAR BASED ON APPLICATION DATE (FILING DATE) ---
             df_analysis['Year'] = df_analysis['AppDate'].dt.year.astype(int)
             
             df_analysis['Month_Name'] = df_analysis['AppDate'].dt.month_name()
             df_analysis['Arrival_Month'] = df_analysis['AppDate'].dt.to_period('M').dt.to_timestamp()
+            
+            # Handle Priority Month (allow NaT)
             df_analysis['Priority_Month'] = df_analysis['PriorityDate'].dt.to_period('M').dt.to_timestamp()
+            
             df_analysis['Firm'] = df_analysis['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
             df_analysis['IPC_Raw'] = df_analysis['Classification'].astype(str).str.split(',')
             df_exp = df_analysis.explode('IPC_Raw')
