@@ -360,15 +360,15 @@ else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
             # UPDATED TAB LIST: Added "APPLICATION GROWTH 2.0"
-            tabs = st.tabs(["APPLICATION GROWTH", "APPLICATION GROWTH 2.0", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
+            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
             
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
             with tabs[0]:
-                st.markdown("### 📊 Application Growth Intelligence (By Filing Year)")
+                st.markdown("### Application Growth Intelligence (By Filing Year)")
                 
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
-                st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
+                st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">PUBLICATION LAG REPORT</h4>
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b><br>
                             <span style="font-size:12px; color:#94A3B8;">*Vertical lines in charts approximate these dates based on Filing Date.</span></div>""", unsafe_allow_html=True)
 
@@ -408,7 +408,7 @@ else:
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
 
                     # 3. CHANGED: ROLLING SUM (12-MONTHS)
-                    st.markdown("### 📅 12-Month Rolling Total Volume (Smooth Trend - Filing Date)")
+                    st.markdown("### 12-Month Rolling Total Volume")
                     
                     # Create a full date range based on selected years to ensure continuity
                     if sel_years_growth:
@@ -444,15 +444,6 @@ else:
                         fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
                         fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
                         
-                        # UPDATED X-AXIS FORMATTING (Month Labels, Rotated)
-                        fig_smooth.update_xaxes(
-                            dtick="M1",            # Force tick every month
-                            tickformat="%b '%y",   # Format: Jan '23
-                            tickangle=-90,         # Rotate -90 to avoid overlap
-                            showgrid=True,
-                            gridcolor="#334155"
-                        )
-
                         fig_smooth.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum)")
                         st.plotly_chart(fix_chart(fig_smooth), use_container_width=True)
 
@@ -466,7 +457,7 @@ else:
 
             # --- TAB 2: APPLICATION GROWTH 2.0 (EARLIEST PRIORITY DATE) ---
             with tabs[1]:
-                st.markdown("### 📊 Application Growth 2.0 (By Earliest Priority Date)")
+                st.markdown("### Application Growth(By Earliest Priority Date)")
                 
                 # PREPARE DATA BASED ON PRIORITY DATE
                 # Filter out rows where PriorityDate is NaT
@@ -478,7 +469,7 @@ else:
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT (Based on Earliest Priority)</h4>
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b><br>
-                            <span style="font-size:12px; color:#94A3B8;">*Vertical lines in charts approximate these dates based on Priority Date.</span></div>""", unsafe_allow_html=True)
+                            <span style="font-size:12px; color:#94A3B8;">*Vertical lines in charts approximate these dates based on Earliest Priority Date.</span></div>""", unsafe_allow_html=True)
 
                 c1_p, c2_p = st.columns([1.5, 1])
                 all_years_p = sorted(df_priority['Priority_Year'].unique())
@@ -507,7 +498,7 @@ else:
                     growth_year_p = df_growth_filtered_p.groupby(['Priority_Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     
                     # 1. GROUPED VERSION
-                    fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Grouped View - Priority Date)")
+                    fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume")
                     fig_year_p = add_cutoff_lines_numeric_axis(fig_year_p, c18, c30)
                     fig_year_p = apply_year_axis_formatting(fig_year_p)
                     st.plotly_chart(fix_chart(fig_year_p), use_container_width=True)
@@ -519,7 +510,7 @@ else:
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
 
                     # 3. CHANGED: ROLLING SUM (12-MONTHS) FOR PRIORITY
-                    st.markdown("### 📅 12-Month Rolling Total Volume (Smooth Trend - Priority Date)")
+                    st.markdown("### 12-Month Rolling Total Volume")
                     
                     if sel_years_growth_p:
                         min_date_p = f"{min(sel_years_growth_p)}-01-01"
@@ -554,15 +545,6 @@ else:
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
                         
-                        # UPDATED X-AXIS FORMATTING (Month Labels, Rotated)
-                        fig_smooth_p.update_xaxes(
-                            dtick="M1",            # Force tick every month
-                            tickformat="%b '%y",   # Format: Jan '23
-                            tickangle=-90,         # Rotate -90 to avoid overlap
-                            showgrid=True,
-                            gridcolor="#334155"
-                        )
-
                         fig_smooth_p.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum - Priority)")
                         st.plotly_chart(fix_chart(fig_smooth_p), use_container_width=True)
 
