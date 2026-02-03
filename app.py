@@ -444,6 +444,15 @@ else:
                         fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
                         fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
                         
+                        # UPDATED X-AXIS FORMATTING (Month Labels, Rotated)
+                        fig_smooth.update_xaxes(
+                            dtick="M1",            # Force tick every month
+                            tickformat="%b '%y",   # Format: Jan '23
+                            tickangle=-90,         # Rotate -90 to avoid overlap
+                            showgrid=True,
+                            gridcolor="#334155"
+                        )
+
                         fig_smooth.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum)")
                         st.plotly_chart(fix_chart(fig_smooth), use_container_width=True)
 
@@ -545,6 +554,15 @@ else:
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
                         
+                        # UPDATED X-AXIS FORMATTING (Month Labels, Rotated)
+                        fig_smooth_p.update_xaxes(
+                            dtick="M1",            # Force tick every month
+                            tickformat="%b '%y",   # Format: Jan '23
+                            tickangle=-90,         # Rotate -90 to avoid overlap
+                            showgrid=True,
+                            gridcolor="#334155"
+                        )
+
                         fig_smooth_p.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum - Priority)")
                         st.plotly_chart(fix_chart(fig_smooth_p), use_container_width=True)
 
