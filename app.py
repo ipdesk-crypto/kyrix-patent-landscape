@@ -407,18 +407,45 @@ else:
                     fig_stacked = apply_year_axis_formatting(fig_stacked)
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
 
-                    # 3. NEW MONTHLY STACKED BREAKDOWN
-                    st.markdown("### 📅 Monthly Stacked Distribution (Filing Date)")
+                    # 3. CHANGED: ROLLING SUM (12-MONTHS)
+                    st.markdown("### 📅 12-Month Rolling Total Volume (Smooth Trend - Filing Date)")
                     
-                    # Sort data for chronological display
-                    df_growth_filtered['Month_Sort'] = df_growth_filtered['Arrival_Month'].dt.month
-                    
-                    monthly_stacked = df_growth_filtered.groupby(['Year', 'Month_Name', 'Application Type (ID)', 'Month_Sort']).size().reset_index(name='Count')
-                    monthly_stacked = monthly_stacked.sort_values(['Year', 'Month_Sort'])
-                    
-                    fig_monthly_stacked = px.bar(monthly_stacked, x='Month_Name', y='Count', color='Application Type (ID)', 
-                                               facet_col='Year', barmode='stack', title="Monthly Combined Volume (Stacked by Filing Year)")
-                    st.plotly_chart(fix_chart(fig_monthly_stacked), use_container_width=True)
+                    # Create a full date range based on selected years to ensure continuity
+                    if sel_years_growth:
+                        min_date = f"{min(sel_years_growth)}-01-01"
+                        max_date = f"{max(sel_years_growth)}-12-31"
+                        full_range = pd.date_range(start=min_date, end=max_date, freq='MS')
+                        
+                        # Aggregate counts by Month and Type
+                        monthly_counts = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='N')
+                        monthly_pivot = monthly_counts.pivot(index='Arrival_Month', columns='Application Type (ID)', values='N').fillna(0)
+                        
+                        # Reindex to fill gaps with 0
+                        monthly_reindexed = monthly_pivot.reindex(full_range, fill_value=0)
+                        
+                        # Calculate Rolling SUM (Window 12) - NOT Average, SUM by Year magnitude
+                        monthly_rolling = monthly_reindexed.rolling(window=12, min_periods=1).sum()
+                        
+                        fig_smooth = go.Figure()
+                        for col in monthly_rolling.columns:
+                            fig_smooth.add_trace(go.Scatter(
+                                x=monthly_rolling.index,
+                                y=monthly_rolling[col],
+                                mode='lines', # No points
+                                line=dict(shape='spline', width=3), # Smooth
+                                name=f"Type: {col}"
+                            ))
+                        
+                        # Add Cutoff Lines (Using Date Axis)
+                        fig_smooth.add_vline(x=c18, line_width=2, line_dash="dash", line_color="#F59E0B")
+                        fig_smooth.add_vline(x=c30, line_width=2, line_dash="dash", line_color="#EF4444")
+                        
+                        # Add Legend Dummies
+                        fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
+                        fig_smooth.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
+                        
+                        fig_smooth.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum)")
+                        st.plotly_chart(fix_chart(fig_smooth), use_container_width=True)
 
                     st.markdown("---")
                     st.subheader("Annual Summary Table")
@@ -482,18 +509,44 @@ else:
                     fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
 
-                    # 3. MONTHLY STACKED BREAKDOWN
-                    st.markdown("### 📅 Monthly Stacked Distribution (Priority Date)")
+                    # 3. CHANGED: ROLLING SUM (12-MONTHS) FOR PRIORITY
+                    st.markdown("### 📅 12-Month Rolling Total Volume (Smooth Trend - Priority Date)")
                     
-                    # Sort data for chronological display
-                    df_growth_filtered_p['Month_Sort'] = df_growth_filtered_p['PriorityDate'].dt.month
-                    
-                    monthly_stacked_p = df_growth_filtered_p.groupby(['Priority_Year', 'Priority_Month_Name', 'Application Type (ID)', 'Month_Sort']).size().reset_index(name='Count')
-                    monthly_stacked_p = monthly_stacked_p.sort_values(['Priority_Year', 'Month_Sort'])
-                    
-                    fig_monthly_stacked_p = px.bar(monthly_stacked_p, x='Priority_Month_Name', y='Count', color='Application Type (ID)', 
-                                               facet_col='Priority_Year', barmode='stack', title="Monthly Combined Volume (Stacked by Priority Year)")
-                    st.plotly_chart(fix_chart(fig_monthly_stacked_p), use_container_width=True)
+                    if sel_years_growth_p:
+                        min_date_p = f"{min(sel_years_growth_p)}-01-01"
+                        max_date_p = f"{max(sel_years_growth_p)}-12-31"
+                        full_range_p = pd.date_range(start=min_date_p, end=max_date_p, freq='MS')
+                        
+                        # Aggregate
+                        monthly_counts_p = df_growth_filtered_p.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='N')
+                        monthly_pivot_p = monthly_counts_p.pivot(index='Priority_Month', columns='Application Type (ID)', values='N').fillna(0)
+                        
+                        # Reindex
+                        monthly_reindexed_p = monthly_pivot_p.reindex(full_range_p, fill_value=0)
+                        
+                        # Rolling Sum
+                        monthly_rolling_p = monthly_reindexed_p.rolling(window=12, min_periods=1).sum()
+                        
+                        fig_smooth_p = go.Figure()
+                        for col in monthly_rolling_p.columns:
+                            fig_smooth_p.add_trace(go.Scatter(
+                                x=monthly_rolling_p.index,
+                                y=monthly_rolling_p[col],
+                                mode='lines', # No points
+                                line=dict(shape='spline', width=3), # Smooth
+                                name=f"Type: {col}"
+                            ))
+                        
+                        # Add Cutoff Lines
+                        fig_smooth_p.add_vline(x=c18, line_width=2, line_dash="dash", line_color="#F59E0B")
+                        fig_smooth_p.add_vline(x=c30, line_width=2, line_dash="dash", line_color="#EF4444")
+                        
+                        # Legend Dummies
+                        fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
+                        fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
+                        
+                        fig_smooth_p.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum - Priority)")
+                        st.plotly_chart(fix_chart(fig_smooth_p), use_container_width=True)
 
                     st.markdown("---")
                     st.subheader("Annual Summary Table (Earliest Priority)")
