@@ -700,11 +700,9 @@ else:
 
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
 
-            tabs = st.tabs(["APPLICATION GROWTH", "APPLICATION GROWTH 2.0", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
+            tabs = st.tabs(["APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
 
             
-
-            # --- TAB 0: APPLICATION GROWTH (FILING DATE) ---
 
             with tabs[0]:
 
@@ -794,27 +792,33 @@ else:
 
 
 
-                    # 3. HIGH RESOLUTION MONTHLY TREND (MODIFIED REQUEST)
+                    # 3. NEW MONTHLY STACKED BREAKDOWN
 
-                    st.markdown("### 📅 Monthly Trend Line (High Resolution - Filing Date)")
+                    st.markdown("### 📅 Monthly Stacked Distribution (Filing Date)")
 
-                    
-
-                    # Group by Arrival_Month to get the 12 points per year (continuous timeline)
-
-                    monthly_trend = df_growth_filtered.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-
-                    monthly_trend = monthly_trend.sort_values('Arrival_Month')
+                    m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
                     
 
-                    fig_monthly_line = px.line(monthly_trend, x='Arrival_Month', y='Count', color='Application Type (ID)', 
+                    # Sort data for chronological display
 
-                                             markers=True, title="Monthly Application Trend (Line View - 12 Points Per Year)")
+                    df_growth_filtered['Month_Sort'] = df_growth_filtered['Arrival_Month'].dt.month
+
+                    # Using Month_Name (derived from AppDate)
 
                     
 
-                    st.plotly_chart(fix_chart(fig_monthly_line), use_container_width=True)
+                    monthly_stacked = df_growth_filtered.groupby(['Year', 'Month_Name', 'Application Type (ID)', 'Month_Sort']).size().reset_index(name='Count')
+
+                    monthly_stacked = monthly_stacked.sort_values(['Year', 'Month_Sort'])
+
+                    
+
+                    fig_monthly_stacked = px.bar(monthly_stacked, x='Month_Name', y='Count', color='Application Type (ID)', 
+
+                                               facet_col='Year', barmode='stack', title="Monthly Combined Volume (Stacked by Filing Year)")
+
+                    st.plotly_chart(fix_chart(fig_monthly_stacked), use_container_width=True)
 
 
 
@@ -834,155 +838,7 @@ else:
 
 
 
-            # --- TAB 1: APPLICATION GROWTH 2.0 (PRIORITY DATE) ---
-
             with tabs[1]:
-
-                st.markdown("### 📊 Application Growth Intelligence 2.0 (By Earliest Priority Date)")
-
-                
-
-                # Prepare Data - Filter for valid Priority Dates
-
-                df_p = df_f.dropna(subset=['PriorityDate']).copy()
-
-                df_p['Priority_Year'] = df_p['PriorityDate'].dt.year.astype(int)
-
-                
-
-                if not df_p.empty:
-
-                    # REPORT BOX TOP
-
-                    c18, c30 = get_cutoff_dates()
-
-                    st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
-
-                                Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b><br>
-
-                                <span style="font-size:12px; color:#94A3B8;">*Analysis based on Earliest Priority Date.</span></div>""", unsafe_allow_html=True)
-
-
-
-                    c1, c2 = st.columns([1.5, 1])
-
-                    all_years_priority = sorted(df_p['Priority_Year'].unique())
-
-                    
-
-                    with c1:
-
-                        mode_growth_p = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_growth_p")
-
-                        if mode_growth_p == "Type Specific Years":
-
-                            year_input_growth_p = st.text_input("Type Priority Years (comma separated):", value=", ".join(map(str, all_years_priority)), key="input_p")
-
-                            sel_years_growth_p = parse_year_input(year_input_growth_p, all_years_priority)
-
-                        else:
-
-                            if all_years_priority:
-
-                                min_y_p, max_y_p = min(all_years_priority), max(all_years_priority)
-
-                                s_year_p, e_year_p = st.slider("Select Priority Year Range:", min_y_p, max_y_p, (min_y_p, max_y_p), key="slider_p")
-
-                                sel_years_growth_p = list(range(s_year_p, e_year_p + 1))
-
-                            else:
-
-                                sel_years_growth_p = []
-
-
-
-                    with c2:
-
-                        all_types_growth_p = sorted(df_p['Application Type (ID)'].unique())
-
-                        sel_types_growth_p = st.multiselect("Filter Application Types:", all_types_growth_p, default=all_types_growth_p, key="types_sel_p")
-
-                    
-
-                    df_growth_filtered_p = df_p[df_p['Priority_Year'].isin(sel_years_growth_p) & df_p['Application Type (ID)'].isin(sel_types_growth_p)]
-
-                    
-
-                    if not df_growth_filtered_p.empty:
-
-                        # REINDEX TO ENSURE ALL YEARS PRESENT
-
-                        growth_year_p = df_growth_filtered_p.groupby(['Priority_Year', 'Application Type (ID)']).size().reset_index(name='Count')
-
-                        
-
-                        # 1. GROUPED VERSION (Priority)
-
-                        fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Grouped View - Priority Date)")
-
-                        # Note: Cutoff lines are typically applied to Filing date, but kept here for reference if needed, though they refer to publication lag from Filing.
-
-                        fig_year_p = apply_year_axis_formatting(fig_year_p)
-
-                        st.plotly_chart(fix_chart(fig_year_p), use_container_width=True)
-
-                        
-
-                        # 2. STACKED VERSION (Priority)
-
-                        fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (Stacked/Combined View - Priority Date)")
-
-                        fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
-
-                        st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
-
-
-
-                        # 3. HIGH RESOLUTION MONTHLY TREND (Priority)
-
-                        st.markdown("### 📅 Monthly Trend Line (High Resolution - Priority Date)")
-
-                        
-
-                        # Group by Priority_Month to get the 12 points per year
-
-                        monthly_trend_p = df_growth_filtered_p.groupby(['Priority_Month', 'Application Type (ID)']).size().reset_index(name='Count')
-
-                        monthly_trend_p = monthly_trend_p.sort_values('Priority_Month')
-
-                        
-
-                        fig_monthly_line_p = px.line(monthly_trend_p, x='Priority_Month', y='Count', color='Application Type (ID)', 
-
-                                                 markers=True, title="Monthly Application Trend (Line View - 12 Points Per Year - Priority Date)")
-
-                        
-
-                        st.plotly_chart(fix_chart(fig_monthly_line_p), use_container_width=True)
-
-
-
-                        st.markdown("---")
-
-                        st.subheader("Annual Summary Table (Priority Date)")
-
-                        summary_pivot_p = growth_year_p.pivot(index='Application Type (ID)', columns='Priority_Year', values='Count').fillna(0).astype(int)
-
-                        summary_pivot_p['Total'] = summary_pivot_p.sum(axis=1)
-
-                        st.dataframe(summary_pivot_p, use_container_width=True)
-
-
-
-                    else: st.warning("No data found for the selected priority years.")
-
-                else:
-
-                    st.warning("No records with valid Earliest Priority Dates found.")
-
-
-
-            with tabs[2]:
 
                 # REPORT BOX TOP
 
@@ -1052,7 +908,7 @@ else:
 
 
 
-            with tabs[3]:
+            with tabs[2]:
 
                 df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
 
@@ -1066,7 +922,7 @@ else:
 
 
 
-            with tabs[4]:
+            with tabs[3]:
 
                 land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
 
@@ -1076,7 +932,7 @@ else:
 
 
 
-            with tabs[5]:
+            with tabs[4]:
 
                 ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
 
@@ -1086,7 +942,7 @@ else:
 
 
 
-            with tabs[6]:
+            with tabs[5]:
 
                 most_recent_date = df_main['AppDate'].max()
 
@@ -1180,7 +1036,7 @@ else:
 
 
 
-            with tabs[7]:
+            with tabs[6]:
 
                 sel_yr_m = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True), key="m_tab_sel")
 
@@ -1196,7 +1052,7 @@ else:
 
 
 
-            with tabs[8]:
+            with tabs[7]:
 
                 st.markdown("### IPC Growth Histogram (Filing Date)")
 
