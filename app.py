@@ -129,16 +129,11 @@ def fix_chart(fig):
         font=dict(color="#F1F5F9"),
         xaxis=dict(gridcolor="#334155", linecolor="#334155", showgrid=True),
         yaxis=dict(gridcolor="#1E293B", linecolor="#334155"),
-        showlegend=True,
+        showlegend=True, # Added legend to side
         legend=dict(
             bgcolor="rgba(0,0,0,0)",
             itemclick="toggle",
-            itemdoubleclick="toggleothers",
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            itemdoubleclick="toggleothers"
         )
     )
     return fig
@@ -171,11 +166,12 @@ def get_cutoff_dates():
     c30 = curr_time - pd.DateOffset(months=30)
     return c18, c30
 
-# Helper for vertical lines on Integer Year Axis (Now with Legend entries)
+# Helper for vertical lines on Integer Year Axis (Removed direct labels for Legend)
 def add_cutoff_lines_numeric_axis(fig, c18, c30):
     c18_dec = c18.year + (c18.month - 1) / 12
     c30_dec = c30.year + (c30.month - 1) / 12
     
+    # Using traces instead of shapes to allow legend labeling
     fig.add_trace(go.Scatter(
         x=[c18_dec, c18_dec], y=[0, 1],
         mode="lines", line=dict(color="#F59E0B", width=2, dash="dash"),
@@ -233,8 +229,8 @@ def load_and_preprocess_all():
         if not df_analysis.empty:
             # --- ANALYSIS YEAR BASED ON APPLICATION DATE (FILING DATE) ---
             df_analysis['Year'] = df_analysis['AppDate'].dt.year.astype(int)
-            # --- EARLIEST PRIORITY YEAR ---
-            df_analysis['PriorityYear'] = df_analysis['PriorityDate'].dt.year.fillna(0).astype(int)
+            # Create Earliest Priority Year for Growth 2.0
+            df_analysis['EarliestPrioYear'] = df_analysis['PriorityDate'].dt.year.fillna(0).astype(int)
             
             df_analysis['Month_Name'] = df_analysis['AppDate'].dt.month_name()
             df_analysis['Arrival_Month'] = df_analysis['AppDate'].dt.to_period('M').dt.to_timestamp()
@@ -364,7 +360,8 @@ else:
     else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
-            tabs = st.tabs(["APPLICATION GROWTH 2.0", "APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
+            # UPDATED TAB LIST
+            tabs = st.tabs(["APPLICATION GROWTH 2.0 (Prio)", "APPLICATION GROWTH", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
             
             # --- TAB 0: APPLICATION GROWTH 2.0 (EARLIEST PRIORITY) ---
             with tabs[0]:
@@ -372,43 +369,38 @@ else:
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b><br>
-                            <span style="font-size:12px; color:#94A3B8;">*Analysis strictly based on the <b>Earliest Priority Date</b>.</span></div>""", unsafe_allow_html=True)
+                            <span style="font-size:12px; color:#94A3B8;">*Analysis based strictly on <b>Earliest Priority Date</b>.</span></div>""", unsafe_allow_html=True)
 
-                all_years_prio = sorted(df_f[df_f['PriorityYear'] > 0]['PriorityYear'].unique())
-                if all_years_prio:
+                all_years_prio = sorted(df_f[df_f['EarliestPrioYear'] > 0]['EarliestPrioYear'].unique())
+                
+                if not all_years_prio:
+                    st.warning("No Priority Date data available for this selection.")
+                else:
                     c1, c2 = st.columns([1.5, 1])
                     with c1:
                         mode_prio = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_prio")
                         if mode_prio == "Type Specific Years":
-                            year_input_prio = st.text_input("Type Priority Years (comma separated):", value=", ".join(map(str, all_years_prio)), key="prio_in")
+                            year_input_prio = st.text_input("Type Priority Years:", value=", ".join(map(str, all_years_prio)), key="prio_in")
                             sel_years_prio = parse_year_input(year_input_prio, all_years_prio)
                         else:
                             min_y_p, max_y_p = min(all_years_prio), max(all_years_prio)
-                            s_year_p, e_year_p = st.slider("Select Priority Year Range:", min_y_p, max_y_p, (min_y_p, max_y_p), key="prio_slider")
+                            s_year_p, e_year_p = st.slider("Select Range:", min_y_p, max_y_p, (min_y_p, max_y_p), key="prio_slider")
                             sel_years_prio = list(range(s_year_p, e_year_p + 1))
-
-                    with c2:
-                        sel_types_prio = st.multiselect("Filter Application Types:", sorted(df_f['Application Type (ID)'].unique()), default=sorted(df_f['Application Type (ID)'].unique()), key="prio_types_sel")
-
-                    df_prio_filtered = df_f[df_f['PriorityYear'].isin(sel_years_prio) & df_f['Application Type (ID)'].isin(sel_types_prio)]
                     
-                    if not df_prio_filtered.empty:
-                        growth_prio = df_prio_filtered.groupby(['PriorityYear', 'Application Type (ID)']).size().reset_index(name='Count')
-                        
-                        fig_prio = px.bar(growth_prio, x='PriorityYear', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Volume by Earliest Priority Date (Grouped)")
+                    with c2:
+                        sel_types_prio = st.multiselect("Filter Types:", sorted(df_f['Application Type (ID)'].unique()), default=sorted(df_f['Application Type (ID)'].unique()), key="prio_type_filter")
+
+                    df_prio_f = df_f[df_f['EarliestPrioYear'].isin(sel_years_prio) & df_f['Application Type (ID)'].isin(sel_types_prio)]
+                    
+                    if not df_prio_f.empty:
+                        growth_prio = df_prio_f.groupby(['EarliestPrioYear', 'Application Type (ID)']).size().reset_index(name='Count')
+                        fig_prio = px.bar(growth_prio, x='EarliestPrioYear', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Volume (Earliest Priority Date)")
                         fig_prio = apply_year_axis_formatting(fig_prio)
                         st.plotly_chart(fix_chart(fig_prio), use_container_width=True)
 
-                        fig_prio_stack = px.bar(growth_prio, x='PriorityYear', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Volume by Earliest Priority Date (Stacked)")
-                        fig_prio_stack = apply_year_axis_formatting(fig_prio_stack)
-                        st.plotly_chart(fix_chart(fig_prio_stack), use_container_width=True)
-
-                        st.markdown("---")
                         st.subheader("Priority Year Summary Table")
-                        prio_pivot = growth_prio.pivot(index='Application Type (ID)', columns='PriorityYear', values='Count').fillna(0).astype(int)
-                        prio_pivot['Total'] = prio_pivot.sum(axis=1)
+                        prio_pivot = growth_prio.pivot(index='Application Type (ID)', columns='EarliestPrioYear', values='Count').fillna(0).astype(int)
                         st.dataframe(prio_pivot, use_container_width=True)
-                    else: st.warning("No data for selected Priority Years.")
 
             with tabs[1]:
                 st.markdown("### 📊 Application Growth Intelligence (By Filing Year)")
@@ -469,7 +461,6 @@ else:
                     summary_pivot = growth_year.pivot(index='Application Type (ID)', columns='Year', values='Count').fillna(0).astype(int)
                     summary_pivot['Total'] = summary_pivot.sum(axis=1)
                     st.dataframe(summary_pivot, use_container_width=True)
-
                 else: st.warning("No data found.")
 
             with tabs[2]:
@@ -500,11 +491,11 @@ else:
                 if selected_firms and selected_years:
                     firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
                     
-                    # --- NEW FIRM INTELLIGENCE YEARLY SUMMARY TABLE ---
-                    st.markdown("### 📈 Yearly Summary by Firm")
-                    firm_yearly_summary = firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0)
-                    firm_yearly_summary['Total'] = firm_yearly_summary.sum(axis=1)
-                    st.dataframe(firm_yearly_summary.sort_values('Total', ascending=False), use_container_width=True)
+                    # --- ADDED YEARLY SUMMARY TABLE FOR FIRMS ---
+                    st.markdown("### 📋 Yearly Firm Activity Summary")
+                    firm_yearly_tbl = firm_sub.groupby(['Firm', 'Year']).size().unstack(fill_value=0)
+                    firm_yearly_tbl['Total'] = firm_yearly_tbl.sum(axis=1)
+                    st.dataframe(firm_yearly_tbl.sort_values('Total', ascending=False), use_container_width=True)
 
                     st.markdown("### Firm Rank by Application Volume")
                     st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
@@ -573,6 +564,7 @@ else:
                     for col in t_ma.columns:
                         fig.add_trace(go.Scatter(x=t_ma.index, y=t_ma[col], mode='lines', line=dict(shape='spline', width=3), name=f'Type: {col}', fill='tozeroy'))
                     
+                    # Cutoff traces for Moving Average
                     fig.add_trace(go.Scatter(x=[c18, c18], y=[0, t_ma.max().max()], mode="lines", line=dict(color="#F59E0B", dash="dash"), name="18m Cutoff"))
                     fig.add_trace(go.Scatter(x=[c30, c30], y=[0, t_ma.max().max()], mode="lines", line=dict(color="#EF4444", dash="dash"), name="30m Cutoff"))
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
