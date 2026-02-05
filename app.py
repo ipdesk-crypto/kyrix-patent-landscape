@@ -396,13 +396,13 @@ else:
                     growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     
                     # 1. ORIGINAL VERSION (Grouped)
-                    fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (Grouped View - Filing Date)")
+                    fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (based on Filing Date)")
                     fig_year = add_cutoff_lines_numeric_axis(fig_year, c18, c30)
                     fig_year = apply_year_axis_formatting(fig_year)
                     st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                     
                     # 2. NEW VERSION (Stacked)
-                    fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (Stacked/Combined View - Filing Date)")
+                    fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (based on Filing Date)")
                     fig_stacked = add_cutoff_lines_numeric_axis(fig_stacked, c18, c30)
                     fig_stacked = apply_year_axis_formatting(fig_stacked)
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
@@ -498,13 +498,13 @@ else:
                     growth_year_p = df_growth_filtered_p.groupby(['Priority_Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     
                     # 1. GROUPED VERSION
-                    fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume")
+                    fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume(based on Earliest Priority Date)")
                     fig_year_p = add_cutoff_lines_numeric_axis(fig_year_p, c18, c30)
                     fig_year_p = apply_year_axis_formatting(fig_year_p)
                     st.plotly_chart(fix_chart(fig_year_p), use_container_width=True)
                     
                     # 2. STACKED VERSION
-                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (Stacked/Combined View - Priority Date)")
+                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (based on Earliest Priority Date)")
                     fig_stacked_p = add_cutoff_lines_numeric_axis(fig_stacked_p, c18, c30)
                     fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
@@ -549,7 +549,7 @@ else:
                         st.plotly_chart(fix_chart(fig_smooth_p), use_container_width=True)
 
                     st.markdown("---")
-                    st.subheader("Annual Summary Table (Earliest Priority)")
+                    st.subheader("Annual Summary Table (based on Earliest Priority)")
                     summary_pivot_p = growth_year_p.pivot(index='Application Type (ID)', columns='Priority_Year', values='Count').fillna(0).astype(int)
                     summary_pivot_p['Total'] = summary_pivot_p.sum(axis=1)
                     st.dataframe(summary_pivot_p, use_container_width=True)
