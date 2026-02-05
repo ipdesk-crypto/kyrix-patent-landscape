@@ -545,7 +545,7 @@ else:
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff"))
                         fig_smooth_p.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff"))
                         
-                        fig_smooth_p.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum - Priority)")
+                        fig_smooth_p.update_layout(title="Total Applications (Trailing 12-Months Rolling Sum - Earliest Priority Date)")
                         st.plotly_chart(fix_chart(fig_smooth_p), use_container_width=True)
 
                     st.markdown("---")
