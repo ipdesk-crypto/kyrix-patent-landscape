@@ -409,7 +409,8 @@ else:
                     fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
                                          title="Annual Application Volume (based on Filing Date)",
                                          category_orders={'Application Type (ID)': sorted(all_types_growth, reverse=True)})
-                    fig_stacked.update_traces(width=1, offset=0) # Make bars full 1-year width, starting at year integer
+                    # --- FIX: Offset set to 0.5 to shift bar to cover [Year.0 to Year+1.0] visually ---
+                    fig_stacked.update_traces(width=1, offset=0.5) 
                     fig_stacked = add_cutoff_lines_numeric_axis(fig_stacked, c18, c30)
                     fig_stacked = apply_year_axis_formatting(fig_stacked)
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
@@ -515,7 +516,8 @@ else:
                     fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
                                            title="Annual Application Volume (based on Earliest Priority Date)",
                                            category_orders={'Application Type (ID)': sorted(all_types_p, reverse=True)})
-                    fig_stacked_p.update_traces(width=1, offset=0) # Make bars full 1-year width, starting at year integer
+                    # --- FIX: Offset set to 0.5 to shift bar to cover [Year.0 to Year+1.0] visually ---
+                    fig_stacked_p.update_traces(width=1, offset=0.5)
                     fig_stacked_p = add_cutoff_lines_numeric_axis(fig_stacked_p, c18, c30)
                     fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
