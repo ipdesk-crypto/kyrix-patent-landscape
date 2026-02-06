@@ -144,7 +144,10 @@ def apply_year_axis_formatting(fig):
         tickformat="'%y",   # Format as '95, '96, '24 etc.
         showgrid=True,
         gridwidth=1,
-        gridcolor="#334155"
+        gridcolor="#334155",
+        tickmode="linear",  # Explicitly set linear mode
+        tick0=0,            # Ensure alignment starts correctly
+        ticklabelmode="period" # Centers label on the bar period
     )
     return fig
 
@@ -708,4 +711,3 @@ else:
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
             st.error("No valid data found.")
-
