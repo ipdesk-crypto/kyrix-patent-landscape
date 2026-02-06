@@ -402,7 +402,11 @@ else:
                     st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                     
                     # 2. NEW VERSION (Stacked)
-                    fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (based on Filing Date)")
+                    # UPDATED: Enforce specific stacking order (Type 5 bottom -> Type 1 top) and Bar Width/Alignment
+                    fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
+                                         title="Annual Application Volume (based on Filing Date)",
+                                         category_orders={'Application Type (ID)': sorted(all_types_growth, reverse=True)})
+                    fig_stacked.update_traces(width=1, offset=0) # Make bars full 1-year width, starting at year integer
                     fig_stacked = add_cutoff_lines_numeric_axis(fig_stacked, c18, c30)
                     fig_stacked = apply_year_axis_formatting(fig_stacked)
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
@@ -504,7 +508,11 @@ else:
                     st.plotly_chart(fix_chart(fig_year_p), use_container_width=True)
                     
                     # 2. STACKED VERSION
-                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', title="Annual Application Volume (based on Earliest Priority Date)")
+                    # UPDATED: Enforce specific stacking order (Type 5 bottom -> Type 1 top) and Bar Width/Alignment
+                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
+                                           title="Annual Application Volume (based on Earliest Priority Date)",
+                                           category_orders={'Application Type (ID)': sorted(all_types_p, reverse=True)})
+                    fig_stacked_p.update_traces(width=1, offset=0) # Make bars full 1-year width, starting at year integer
                     fig_stacked_p = add_cutoff_lines_numeric_axis(fig_stacked_p, c18, c30)
                     fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
@@ -700,5 +708,4 @@ else:
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
             st.error("No valid data found.")
-
 
