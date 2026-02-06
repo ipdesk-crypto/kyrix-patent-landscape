@@ -168,17 +168,24 @@ def get_cutoff_dates():
     c30 = curr_time - pd.DateOffset(months=30)
     return c18, c30
 
-# Helper for vertical lines on Integer Year Axis
-# UPDATED: Now adds to Legend instead of text labels
+# Helper for vertical lines on Integer Year Axis (For Graph 1 & Firm Chart)
 def add_cutoff_lines_numeric_axis(fig, c18, c30):
     c18_dec = c18.year + (c18.month - 1) / 12
     c30_dec = c30.year + (c30.month - 1) / 12
-    
-    # 1. Add the vertical lines (No text annotation)
     fig.add_vline(x=c18_dec, line_width=2, line_dash="dash", line_color="#F59E0B")
     fig.add_vline(x=c30_dec, line_width=2, line_dash="dash", line_color="#EF4444")
-    
-    # 2. Add Dummy Traces so they appear in the Legend
+    fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                             line=dict(color="#F59E0B", width=2, dash="dash"), 
+                             name="18m Cutoff", showlegend=True))
+    fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
+                             line=dict(color="#EF4444", width=2, dash="dash"), 
+                             name="30m Cutoff", showlegend=True))
+    return fig
+
+# NEW Helper for vertical lines on Date Axis (For Stacked Graph 2)
+def add_cutoff_lines_date_axis(fig, c18, c30):
+    fig.add_vline(x=c18, line_width=2, line_dash="dash", line_color="#F59E0B")
+    fig.add_vline(x=c30, line_width=2, line_dash="dash", line_color="#EF4444")
     fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', 
                              line=dict(color="#F59E0B", width=2, dash="dash"), 
                              name="18m Cutoff", showlegend=True))
@@ -362,7 +369,7 @@ else:
     else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
-            # UPDATED TAB LIST: Added "APPLICATION GROWTH 2.0"
+            # UPDATED TAB LIST
             tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
             
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
@@ -398,21 +405,35 @@ else:
                     # REINDEX TO ENSURE ALL YEARS PRESENT
                     growth_year = df_growth_filtered.groupby(['Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     
-                    # 1. ORIGINAL VERSION (Grouped)
+                    # 1. ORIGINAL VERSION (Grouped) - Using Numeric Axis (Unchanged)
                     fig_year = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume (based on Filing Date)")
                     fig_year = add_cutoff_lines_numeric_axis(fig_year, c18, c30)
                     fig_year = apply_year_axis_formatting(fig_year)
                     st.plotly_chart(fix_chart(fig_year), use_container_width=True)
                     
-                    # 2. NEW VERSION (Stacked)
-                    # UPDATED: Enforce specific stacking order (Type 5 bottom -> Type 1 top) and Bar Width/Alignment
-                    fig_stacked = px.bar(growth_year, x='Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
+                    # 2. NEW VERSION (Stacked) - CORRECTED DATE AXIS FOR ALIGNMENT
+                    # Create a real Date column to use proper period alignment
+                    growth_year['Year_Date'] = pd.to_datetime(growth_year['Year'].astype(str), format='%Y')
+                    
+                    fig_stacked = px.bar(growth_year, x='Year_Date', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
                                          title="Annual Application Volume (based on Filing Date)",
                                          category_orders={'Application Type (ID)': sorted(all_types_growth, reverse=True)})
-                    # --- FIX: Offset set to 0.5 to shift bar to cover [Year.0 to Year+1.0] visually ---
-                    fig_stacked.update_traces(width=1, offset=0.5) 
-                    fig_stacked = add_cutoff_lines_numeric_axis(fig_stacked, c18, c30)
-                    fig_stacked = apply_year_axis_formatting(fig_stacked)
+                    
+                    # FIXED ALIGNMENT: xperiod="M12" means bar width is 1 year. xperiodalignment="start" means it starts at Jan 1.
+                    fig_stacked.update_traces(xperiod="M12", xperiodalignment="start")
+                    
+                    # Apply Date Axis Formatting with Period Labeling (Centers the label)
+                    fig_stacked.update_xaxes(
+                        ticklabelmode="period", # Puts '2023' label in middle of 2023 box
+                        dtick="M12",            # 1 Year ticks
+                        tickformat="'%y",       # '95 format
+                        showgrid=True,
+                        gridcolor="#334155"
+                    )
+                    
+                    # Add Cutoff Lines using the DATE helper
+                    fig_stacked = add_cutoff_lines_date_axis(fig_stacked, c18, c30)
+                    
                     st.plotly_chart(fix_chart(fig_stacked), use_container_width=True)
 
                     # 3. CHANGED: ROLLING SUM (12-MONTHS)
@@ -505,21 +526,35 @@ else:
                     # REINDEX TO ENSURE ALL YEARS PRESENT
                     growth_year_p = df_growth_filtered_p.groupby(['Priority_Year', 'Application Type (ID)']).size().reset_index(name='Count')
                     
-                    # 1. GROUPED VERSION
+                    # 1. GROUPED VERSION (Numeric Axis - Unchanged)
                     fig_year_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='group', text='Count', title="Annual Application Volume(based on Earliest Priority Date)")
                     fig_year_p = add_cutoff_lines_numeric_axis(fig_year_p, c18, c30)
                     fig_year_p = apply_year_axis_formatting(fig_year_p)
                     st.plotly_chart(fix_chart(fig_year_p), use_container_width=True)
                     
-                    # 2. STACKED VERSION
-                    # UPDATED: Enforce specific stacking order (Type 5 bottom -> Type 1 top) and Bar Width/Alignment
-                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
+                    # 2. STACKED VERSION (Date Axis - CORRECTED)
+                    # Create real Date column
+                    growth_year_p['Priority_Year_Date'] = pd.to_datetime(growth_year_p['Priority_Year'].astype(str), format='%Y')
+
+                    fig_stacked_p = px.bar(growth_year_p, x='Priority_Year_Date', y='Count', color='Application Type (ID)', barmode='stack', text='Count', 
                                            title="Annual Application Volume (based on Earliest Priority Date)",
                                            category_orders={'Application Type (ID)': sorted(all_types_p, reverse=True)})
-                    # --- FIX: Offset set to 0.5 to shift bar to cover [Year.0 to Year+1.0] visually ---
-                    fig_stacked_p.update_traces(width=1, offset=0.5)
-                    fig_stacked_p = add_cutoff_lines_numeric_axis(fig_stacked_p, c18, c30)
-                    fig_stacked_p = apply_year_axis_formatting(fig_stacked_p)
+                    
+                    # FIXED ALIGNMENT
+                    fig_stacked_p.update_traces(xperiod="M12", xperiodalignment="start")
+                    
+                    # Apply Date Axis Formatting with Period Labeling
+                    fig_stacked_p.update_xaxes(
+                        ticklabelmode="period",
+                        dtick="M12",
+                        tickformat="'%y",
+                        showgrid=True,
+                        gridcolor="#334155"
+                    )
+                    
+                    # Add Cutoff Lines using the DATE helper
+                    fig_stacked_p = add_cutoff_lines_date_axis(fig_stacked_p, c18, c30)
+                    
                     st.plotly_chart(fix_chart(fig_stacked_p), use_container_width=True)
 
                     # 3. CHANGED: ROLLING SUM (12-MONTHS) FOR PRIORITY
