@@ -211,19 +211,27 @@ def boolean_search(df, query):
 
 @st.cache_data
 def load_and_preprocess_all():
-    path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
+    # 1. Define the filename
+    base_path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
+    path = base_path
     
-    # NEW LOGIC: If CSV is missing or is an LFS pointer (<1KB), use the ZIP
+    # 2. NEW LOGIC: Check if CSV is missing OR is a tiny LFS pointer (less than 1KB)
     if not os.path.exists(path) or os.path.getsize(path) < 1000:
-        if os.path.exists(path + ".zip"):
-            path = path + ".zip"
+        # Check if the .zip version you uploaded exists
+        if os.path.exists(base_path + ".zip"):
+            path = base_path + ".zip"
         else:
+            # If neither exists, stop here to prevent a crash
             return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
 
     try:
-        # Pandas can read .zip files automatically
+        # 3. Pandas automatically unzips and reads the file if path ends in .zip
         df_raw = pd.read_csv(path, header=0, encoding='utf-8', on_bad_lines='skip')
-        if df_raw.empty: return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
+        
+        if df_raw.empty: 
+            return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
+            
+        # --- Continue with your original processing logic ---
         category_row = df_raw.iloc[0] 
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
