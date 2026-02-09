@@ -208,28 +208,22 @@ def boolean_search(df, query):
 
 @st.cache_data
 def load_and_preprocess_all():
-    # FILENAME HANDLING (Matches your specific file name)
-    csv_name = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
-    zip_name = csv_name + ".zip"
+    # MODIFIED: Logic to handle Large Files and ZIP format for Streamlit Cloud
+    path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
     
-    # Logic to choose between raw CSV or ZIP automatically
-    if os.path.exists(zip_name):
-        path = zip_name
-    elif os.path.exists(csv_name):
-        path = csv_name
-    else:
-        return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
-        
-    # Safety check for Git LFS Pointers (files that are just text links)
+    if not os.path.exists(path):
+        if os.path.exists(path + ".zip"):
+            path = path + ".zip"
+        else:
+            return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
+            
     if os.path.getsize(path) < 1000:
-        st.error(f"DATA ERROR: The file '{path}' on GitHub is an empty pointer. Please upload the data as a .zip using GitHub Desktop.")
+        st.error("⚠️ DATA ERROR: The file on GitHub is a 'Pointer' (LFS). Use the .zip method to upload.")
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
 
     try:
-        # Pandas handles .zip compression automatically
         df_raw = pd.read_csv(path, header=0, encoding='utf-8', on_bad_lines='skip')
         if df_raw.empty: return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
-        
         category_row = df_raw.iloc[0] 
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
@@ -256,7 +250,6 @@ def load_and_preprocess_all():
         else:
             return df_search, col_map, pd.DataFrame(), pd.DataFrame()
     except Exception as e:
-        st.error(f"System Load Failure: {e}")
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
 
 df_search, col_map, df_main, df_exp = load_and_preprocess_all()
