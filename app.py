@@ -211,7 +211,11 @@ def boolean_search(df, query):
 
 @st.cache_data
 def load_and_preprocess_all():
-    # 1. The exact name of your files
+    # --- DIAGNOSTIC SECTION ---
+    st.write("### SYSTEM DIAGNOSTICS")
+    st.write("Files found in repository:", os.listdir(".")) 
+    # --------------------------
+
     base_name = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
     zip_name = base_name + ".zip"
     
