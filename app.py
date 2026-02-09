@@ -211,26 +211,25 @@ def boolean_search(df, query):
 
 @st.cache_data
 def load_and_preprocess_all():
-    # 1. This matches your exact filename
+    # 1. The exact name of your files
     base_name = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
-    path = base_name
+    zip_name = base_name + ".zip"
     
-    # 2. FIX: Identify if the file is missing or a tiny 1KB GitHub "pointer" file
-    if not os.path.exists(path) or os.path.getsize(path) < 1000:
-        # 3. If the CSV is invalid, try to load the .zip version instead
-        if os.path.exists(base_name + ".zip"):
-            path = base_name + ".zip"
-        else:
-            # If neither exists, return empty dataframes
-            return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
+    # 2. DECISION LOGIC: Which file should we actually use?
+    if os.path.exists(base_name) and os.path.getsize(base_name) > 5000:
+        path = base_name # The CSV is real and large enough to be data
+    elif os.path.exists(zip_name):
+        path = zip_name # The CSV is missing or a tiny 'pointer', use the ZIP
+    else:
+        # If we get here, neither the real CSV nor the ZIP is found
+        return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
 
     try:
-        # 4. Pandas automatically unzips and reads the file if it ends in .zip
+        # 3. LOAD DATA: Pandas handles .zip or .csv automatically
         df_raw = pd.read_csv(path, header=0, encoding='utf-8', on_bad_lines='skip')
         
         if df_raw.empty: 
             return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
-            
         # --- CONTINUE WITH YOUR ORIGINAL PROCESSING LOGIC ---
         category_row = df_raw.iloc[0] 
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
