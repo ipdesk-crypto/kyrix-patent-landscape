@@ -621,8 +621,14 @@ else:
                 
                 c1, c2 = st.columns([1,1])
                 with c1:
-                    sel_all_firms = st.checkbox("Select All Firms", key="all_firms_chk")
-                    selected_firms = st.multiselect("Select Firms:", all_firms, default=top_firms_list[:5] if not sel_all_firms else all_firms)
+                    sel_all_firms = st.checkbox("Select All Firms (Bypass Dropdown)", key="all_firms_chk")
+                    if sel_all_firms:
+                        # BYPASS DROP DOWN TO PREVENT CRASH
+                        selected_firms = all_firms
+                        st.info("ALL Firms Selected. Dropdown disabled for performance.")
+                    else:
+                        selected_firms = st.multiselect("Select Firms:", all_firms, default=top_firms_list[:5])
+                
                 with c2:
                     mode_firm = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_firm")
                     if mode_firm == "Type Specific Years":
@@ -633,19 +639,35 @@ else:
                         s_year, e_year = st.slider("Select Year Range:", min_y, max_y, (min_y, max_y), key="firm_slider")
                         selected_years = list(range(s_year, e_year + 1))
                 
+                # Check if selections are valid
                 if selected_firms and selected_years:
-                    firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
-                    st.markdown("### Firm Rank by Application Volume")
-                    st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
-                    firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
-                    fig = px.line(firm_growth, x='Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Filing Date)")
-                    fig = add_cutoff_lines_numeric_axis(fig, c18, c30)
-                    fig = apply_year_axis_formatting(fig)
-                    st.plotly_chart(fix_chart(fig), use_container_width=True)
-
-                    # NEW: YEARLY SUMMARY OF TABLE FOR FIRM INTELLIGENCE
-                    st.subheader("Firm Annual Summary Table")
+                    # OPTIMIZATION: If "All Firms" is selected, don't use .isin(all_firms), just filter by year
+                    if sel_all_firms:
+                        firm_sub = df_firms_only[df_firms_only['Year'].isin(selected_years)]
+                    else:
+                        firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
+                    
                     if not firm_sub.empty:
+                        st.markdown("### Firm Rank by Application Volume")
+                        st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
+                        
+                        firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
+                        
+                        # Only show chart if we haven't selected ALL firms (too messy), or limit to top 20
+                        if sel_all_firms:
+                            st.warning("Displaying Top 20 Firms in Chart for clarity (All included in tables).")
+                            top_20 = firm_sub['Firm'].value_counts().nlargest(20).index.tolist()
+                            fig_data = firm_growth[firm_growth['Firm'].isin(top_20)]
+                        else:
+                            fig_data = firm_growth
+
+                        fig = px.line(fig_data, x='Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Filing Date)")
+                        fig = add_cutoff_lines_numeric_axis(fig, c18, c30)
+                        fig = apply_year_axis_formatting(fig)
+                        st.plotly_chart(fix_chart(fig), use_container_width=True)
+
+                        # NEW: YEARLY SUMMARY OF TABLE FOR FIRM INTELLIGENCE
+                        st.subheader("Firm Annual Summary Table")
                         firm_summary_pivot = firm_growth.pivot(index='Firm', columns='Year', values='Apps').fillna(0).astype(int)
                         firm_summary_pivot['Total'] = firm_summary_pivot.sum(axis=1)
                         # Sort by Total descending
@@ -654,7 +676,7 @@ else:
                         firm_summary_pivot.insert(0, 'Rank', range(1, 1 + len(firm_summary_pivot)))
                         st.dataframe(firm_summary_pivot, use_container_width=True)
                     else:
-                        st.info("No data for summary table.")
+                        st.warning("No data for the selected filters.")
 
             # --- TAB 4: APPLICANT INTELLIGENCE (NEW) ---
             with tabs[3]:
@@ -671,8 +693,14 @@ else:
                 
                 c1_a, c2_a = st.columns([1,1])
                 with c1_a:
-                    sel_all_apps = st.checkbox("Select All Applicants", key="all_apps_chk")
-                    selected_apps = st.multiselect("Select Applicants:", all_apps, default=top_apps_list[:5] if not sel_all_apps else all_apps, key="app_selector")
+                    sel_all_apps = st.checkbox("Select All Applicants (Bypass Dropdown)", key="all_apps_chk")
+                    if sel_all_apps:
+                         # BYPASS DROP DOWN TO PREVENT CRASH
+                        selected_apps = all_apps
+                        st.info("ALL Applicants Selected. Dropdown disabled for performance.")
+                    else:
+                        selected_apps = st.multiselect("Select Applicants:", all_apps, default=top_apps_list[:5], key="app_selector")
+
                 with c2_a:
                     mode_app = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_app")
                     if mode_app == "Type Specific Years":
@@ -684,19 +712,33 @@ else:
                         selected_years_app = list(range(s_year_a, e_year_a + 1))
                 
                 if selected_apps and selected_years_app:
-                    app_sub = df_applicants[(df_applicants['Data of Applicant - Legal Name in English'].isin(selected_apps)) & (df_applicants['Year'].isin(selected_years_app))]
-                    st.markdown("### Applicant Rank by Application Volume")
-                    st.dataframe(app_sub['Data of Applicant - Legal Name in English'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
+                    # OPTIMIZATION: If "All" checked, skip .isin check
+                    if sel_all_apps:
+                        app_sub = df_applicants[df_applicants['Year'].isin(selected_years_app)]
+                    else:
+                        app_sub = df_applicants[(df_applicants['Data of Applicant - Legal Name in English'].isin(selected_apps)) & (df_applicants['Year'].isin(selected_years_app))]
                     
-                    app_growth = app_sub.groupby(['Year', 'Data of Applicant - Legal Name in English']).size().reset_index(name='Apps')
-                    fig_app = px.line(app_growth, x='Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Filing Date)")
-                    fig_app = add_cutoff_lines_numeric_axis(fig_app, c18, c30)
-                    fig_app = apply_year_axis_formatting(fig_app)
-                    st.plotly_chart(fix_chart(fig_app), use_container_width=True)
-
-                    # APPLICANT SUMMARY TABLE
-                    st.subheader("Applicant Annual Summary Table")
                     if not app_sub.empty:
+                        st.markdown("### Applicant Rank by Application Volume")
+                        st.dataframe(app_sub['Data of Applicant - Legal Name in English'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
+                        
+                        app_growth = app_sub.groupby(['Year', 'Data of Applicant - Legal Name in English']).size().reset_index(name='Apps')
+                        
+                        # Only show chart if we haven't selected ALL (too messy), or limit to top 20
+                        if sel_all_apps:
+                            st.warning("Displaying Top 20 Applicants in Chart for clarity (All included in tables).")
+                            top_20_a = app_sub['Data of Applicant - Legal Name in English'].value_counts().nlargest(20).index.tolist()
+                            fig_data_a = app_growth[app_growth['Data of Applicant - Legal Name in English'].isin(top_20_a)]
+                        else:
+                            fig_data_a = app_growth
+
+                        fig_app = px.line(fig_data_a, x='Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Filing Date)")
+                        fig_app = add_cutoff_lines_numeric_axis(fig_app, c18, c30)
+                        fig_app = apply_year_axis_formatting(fig_app)
+                        st.plotly_chart(fix_chart(fig_app), use_container_width=True)
+
+                        # APPLICANT SUMMARY TABLE
+                        st.subheader("Applicant Annual Summary Table")
                         app_summary_pivot = app_growth.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
                         app_summary_pivot['Total'] = app_summary_pivot.sum(axis=1)
                         # Sort by Total descending
@@ -705,7 +747,7 @@ else:
                         app_summary_pivot.insert(0, 'Rank', range(1, 1 + len(app_summary_pivot)))
                         st.dataframe(app_summary_pivot, use_container_width=True)
                     else:
-                        st.info("No data for summary table.")
+                        st.warning("No data for selected filters.")
 
             # --- TAB 5: FIRM'S CLIENT LISTS (NEW) ---
             with tabs[4]:
