@@ -211,40 +211,21 @@ def boolean_search(df, query):
 
 @st.cache_data
 def load_and_preprocess_all():
-    # --- DIAGNOSTIC SECTION ---
-    st.write("### SYSTEM DIAGNOSTICS")
-    st.write("Files found in repository:", os.listdir(".")) 
-    # --------------------------
-
-    base_name = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
-    zip_name = base_name + ".zip"
-    
-    # 2. DECISION LOGIC: Which file should we actually use?
-    if os.path.exists(base_name) and os.path.getsize(base_name) > 5000:
-        path = base_name # The CSV is real and large enough to be data
-    elif os.path.exists(zip_name):
-        path = zip_name # The CSV is missing or a tiny 'pointer', use the ZIP
-    else:
-        # If we get here, neither the real CSV nor the ZIP is found
+    path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
+    if not os.path.exists(path) or os.stat(path).st_size == 0: 
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
-
     try:
-        # 3. LOAD DATA: Pandas handles .zip or .csv automatically
-        df_raw = pd.read_csv(path, header=0, encoding='utf-8', on_bad_lines='skip')
+        # UPDATED: Added skipinitialspace=True to handle spaces after commas
+        df_raw = pd.read_csv(path, header=0, encoding='utf-8', on_bad_lines='skip', skipinitialspace=True)
+        if df_raw.empty: return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
         
-        if df_raw.empty: 
-            return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
-        # --- CONTINUE WITH YOUR ORIGINAL PROCESSING LOGIC ---
         category_row = df_raw.iloc[0] 
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
         df = df_search.copy()
-            
-        # --- Continue with your original processing logic ---
-        category_row = df_raw.iloc[0] 
-        col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
-        df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
-        df = df_search.copy()
+        
+        # --- CRITICAL FIX: Strip whitespace from column names ---
+        df.columns = [c.strip() for c in df.columns]
         
         # --- PARSE DATES (Enhanced with dayfirst=True for safety) ---
         df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce', dayfirst=True)
@@ -275,6 +256,7 @@ def load_and_preprocess_all():
         else:
             return df_search, col_map, pd.DataFrame(), pd.DataFrame()
     except Exception as e:
+        st.error(f"Data Load Error: {e}")
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame()
 
 df_search, col_map, df_main, df_exp = load_and_preprocess_all()
@@ -381,7 +363,7 @@ else:
                         with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
                     st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
                     st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
-
+    
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     else:
         if df_main is not None and not df_main.empty:
@@ -768,6 +750,6 @@ else:
                     st.plotly_chart(fix_chart(fig_h), use_container_width=True)
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
-            st.error("No valid data found.")
+            st.error("No valid data found. Check your CSV format.")
 
 
