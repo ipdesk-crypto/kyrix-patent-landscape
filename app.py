@@ -368,8 +368,8 @@ else:
     else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
-            # UPDATED TAB LIST: Added "APPLICATION GROWTH 2.0"
-            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
+            # UPDATED TAB LIST: Added "Applicant Intelligence" and "Firm's Client Lists"
+            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "IPC Growth Histogram"])
             
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
             with tabs[0]:
@@ -650,28 +650,121 @@ else:
                         firm_summary_pivot['Total'] = firm_summary_pivot.sum(axis=1)
                         # Sort by Total descending
                         firm_summary_pivot = firm_summary_pivot.sort_values(by='Total', ascending=False)
+                        # ADD RANK COLUMN
+                        firm_summary_pivot.insert(0, 'Rank', range(1, 1 + len(firm_summary_pivot)))
                         st.dataframe(firm_summary_pivot, use_container_width=True)
                     else:
                         st.info("No data for summary table.")
 
+            # --- TAB 4: APPLICANT INTELLIGENCE (NEW) ---
             with tabs[3]:
+                # REPORT BOX TOP
+                c18, c30 = get_cutoff_dates()
+                st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
+                            Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
+                
+                # Applicants Logic
+                df_applicants = df_f.copy() # Use df_f which is filtered by Type
+                all_apps = sorted(df_applicants['Data of Applicant - Legal Name in English'].astype(str).unique())
+                top_apps_list = df_applicants['Data of Applicant - Legal Name in English'].value_counts().nlargest(10).index.tolist()
+                available_years_app = sorted(df_applicants['Year'].unique(), reverse=True)
+                
+                c1_a, c2_a = st.columns([1,1])
+                with c1_a:
+                    sel_all_apps = st.checkbox("Select All Applicants", key="all_apps_chk")
+                    selected_apps = st.multiselect("Select Applicants:", all_apps, default=top_apps_list[:5] if not sel_all_apps else all_apps, key="app_selector")
+                with c2_a:
+                    mode_app = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_app")
+                    if mode_app == "Type Specific Years":
+                        year_input_app = st.text_input("Type Years for Applicant Analysis:", value=", ".join(map(str, available_years_app)), key="app_year_input")
+                        selected_years_app = parse_year_input(year_input_app, available_years_app)
+                    else:
+                        min_y_a, max_y_a = min(available_years_app), max(available_years_app)
+                        s_year_a, e_year_a = st.slider("Select Year Range:", min_y_a, max_y_a, (min_y_a, max_y_a), key="app_slider")
+                        selected_years_app = list(range(s_year_a, e_year_a + 1))
+                
+                if selected_apps and selected_years_app:
+                    app_sub = df_applicants[(df_applicants['Data of Applicant - Legal Name in English'].isin(selected_apps)) & (df_applicants['Year'].isin(selected_years_app))]
+                    st.markdown("### Applicant Rank by Application Volume")
+                    st.dataframe(app_sub['Data of Applicant - Legal Name in English'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
+                    
+                    app_growth = app_sub.groupby(['Year', 'Data of Applicant - Legal Name in English']).size().reset_index(name='Apps')
+                    fig_app = px.line(app_growth, x='Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Filing Date)")
+                    fig_app = add_cutoff_lines_numeric_axis(fig_app, c18, c30)
+                    fig_app = apply_year_axis_formatting(fig_app)
+                    st.plotly_chart(fix_chart(fig_app), use_container_width=True)
+
+                    # APPLICANT SUMMARY TABLE
+                    st.subheader("Applicant Annual Summary Table")
+                    if not app_sub.empty:
+                        app_summary_pivot = app_growth.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
+                        app_summary_pivot['Total'] = app_summary_pivot.sum(axis=1)
+                        # Sort by Total descending
+                        app_summary_pivot = app_summary_pivot.sort_values(by='Total', ascending=False)
+                        # ADD RANK COLUMN
+                        app_summary_pivot.insert(0, 'Rank', range(1, 1 + len(app_summary_pivot)))
+                        st.dataframe(app_summary_pivot, use_container_width=True)
+                    else:
+                        st.info("No data for summary table.")
+
+            # --- TAB 5: FIRM'S CLIENT LISTS (NEW) ---
+            with tabs[4]:
+                st.markdown("### Firm's Client Intelligence")
+                
+                # Get list of Firms
+                all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].unique())
+                
+                c1_fc, c2_fc = st.columns([1,2])
+                with c1_fc:
+                    target_firm = st.selectbox("Select Firm:", all_firms_client, key="firm_client_select")
+                
+                if target_firm:
+                    # Filter data for this firm
+                    client_data = df_f[df_f['Firm'] == target_firm]
+                    
+                    st.markdown(f"#### Client Portfolio for: <span style='color:#F59E0B'>{target_firm}</span>", unsafe_allow_html=True)
+                    
+                    # Group by Applicant (Client)
+                    client_counts = client_data.groupby('Data of Applicant - Legal Name in English').size().reset_index(name='Total Applications')
+                    client_counts = client_counts.sort_values(by='Total Applications', ascending=False)
+                    client_counts.insert(0, 'Rank', range(1, 1 + len(client_counts)))
+                    
+                    col_summ, col_det = st.columns([1, 2])
+                    
+                    with col_summ:
+                        st.markdown("**Client Ranking**")
+                        st.dataframe(client_counts, use_container_width=True, hide_index=True)
+                    
+                    with col_det:
+                        st.markdown("**Client Filing History (Annual Breakdown)**")
+                        # Detailed pivot
+                        client_pivot = client_data.groupby(['Data of Applicant - Legal Name in English', 'Year']).size().reset_index(name='Apps')
+                        client_pivot_table = client_pivot.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
+                        client_pivot_table['Total'] = client_pivot_table.sum(axis=1)
+                        client_pivot_table = client_pivot_table.sort_values(by='Total', ascending=False)
+                         # ADD RANK COLUMN
+                        client_pivot_table.insert(0, 'Rank', range(1, 1 + len(client_pivot_table)))
+                        st.dataframe(client_pivot_table, use_container_width=True)
+
+
+            with tabs[5]:
                 df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
                 if 'selected_firms' in locals() and selected_firms:
                     firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
                     fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-            with tabs[4]:
+            with tabs[6]:
                 land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
                 fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-            with tabs[5]:
+            with tabs[7]:
                 ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
                 fig = px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-            with tabs[6]:
+            with tabs[8]:
                 most_recent_date = df_main['AppDate'].max()
                 date_str = most_recent_date.strftime('%d %B %Y') if pd.notnull(most_recent_date) else "N/A"
                 st.markdown(f'<div class="metric-badge" style="padding:10px 20px; font-size:16px;">Most Recent Filing Date: {date_str}</div>', unsafe_allow_html=True)
@@ -723,7 +816,7 @@ else:
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
                 else: st.warning("Insufficient data.")
 
-            with tabs[7]:
+            with tabs[9]:
                 sel_yr_m = st.selectbox("Choose Year:", sorted(df_f['Year'].unique(), reverse=True), key="m_tab_sel")
                 yr_data = df_f[df_f['Year'] == sel_yr_m]
                 m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -731,7 +824,7 @@ else:
                 fig = px.bar(counts, x='Month_Name', y='Apps', text='Apps', height=600)
                 st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-            with tabs[8]:
+            with tabs[10]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
                 u_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
                 a_yrs_hist = sorted(df_exp_f['Year'].unique())
@@ -751,5 +844,4 @@ else:
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
             st.error("No valid data found. Check your CSV format.")
-
 
