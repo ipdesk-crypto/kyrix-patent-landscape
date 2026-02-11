@@ -236,6 +236,10 @@ def load_and_preprocess_all():
         df_analysis = df.dropna(subset=['AppDate']).copy()
         
         if not df_analysis.empty:
+            # --- STRICT CASE INSENSITIVITY NORMALIZATION ---
+            # Normalizing Applicant Name to Uppercase to ensure counts are accurate regardless of input case
+            df_analysis['Data of Applicant - Legal Name in English'] = df_analysis['Data of Applicant - Legal Name in English'].astype(str).str.strip().str.upper()
+
             # --- ANALYSIS YEAR BASED ON APPLICATION DATE (FILING DATE) ---
             df_analysis['Year'] = df_analysis['AppDate'].dt.year.astype(int)
             
@@ -753,41 +757,54 @@ else:
             with tabs[4]:
                 st.markdown("### Firm's Client Intelligence")
                 
-                # Get list of Firms
+                # Get list of Firms and Years
                 all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].unique())
+                all_years_fc = sorted(df_f['Year'].unique(), reverse=True)
                 
-                c1_fc, c2_fc = st.columns([1,2])
+                c1_fc, c2_fc = st.columns([1, 1.5])
                 with c1_fc:
                     target_firm = st.selectbox("Select Firm:", all_firms_client, key="firm_client_select")
                 
-                if target_firm:
-                    # Filter data for this firm
-                    client_data = df_f[df_f['Firm'] == target_firm]
+                with c2_fc:
+                    mode_fc = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_fc")
+                    if mode_fc == "Type Specific Years":
+                        year_input_fc = st.text_input("Type Years for Client Analysis:", value=", ".join(map(str, all_years_fc)), key="fc_year_input")
+                        selected_years_fc = parse_year_input(year_input_fc, all_years_fc)
+                    else:
+                        min_y_fc, max_y_fc = min(all_years_fc), max(all_years_fc)
+                        s_year_fc, e_year_fc = st.slider("Select Year Range:", min_y_fc, max_y_fc, (min_y_fc, max_y_fc), key="fc_slider")
+                        selected_years_fc = list(range(s_year_fc, e_year_fc + 1))
+                
+                if target_firm and selected_years_fc:
+                    # Filter data for this firm AND selected years
+                    client_data = df_f[(df_f['Firm'] == target_firm) & (df_f['Year'].isin(selected_years_fc))]
                     
-                    st.markdown(f"#### Client Portfolio for: <span style='color:#F59E0B'>{target_firm}</span>", unsafe_allow_html=True)
-                    
-                    # Group by Applicant (Client)
-                    client_counts = client_data.groupby('Data of Applicant - Legal Name in English').size().reset_index(name='Total Applications')
-                    client_counts = client_counts.sort_values(by='Total Applications', ascending=False)
-                    client_counts.insert(0, 'Rank', range(1, 1 + len(client_counts)))
-                    
-                    col_summ, col_det = st.columns([1, 2])
-                    
-                    with col_summ:
-                        st.markdown("**Client Ranking**")
-                        st.dataframe(client_counts, use_container_width=True, hide_index=True)
-                    
-                    with col_det:
-                        st.markdown("**Client Filing History (Annual Breakdown)**")
-                        # Detailed pivot
-                        client_pivot = client_data.groupby(['Data of Applicant - Legal Name in English', 'Year']).size().reset_index(name='Apps')
-                        client_pivot_table = client_pivot.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
-                        client_pivot_table['Total'] = client_pivot_table.sum(axis=1)
-                        client_pivot_table = client_pivot_table.sort_values(by='Total', ascending=False)
-                         # ADD RANK COLUMN
-                        client_pivot_table.insert(0, 'Rank', range(1, 1 + len(client_pivot_table)))
-                        st.dataframe(client_pivot_table, use_container_width=True)
-
+                    if not client_data.empty:
+                        st.markdown(f"#### Client Portfolio for: <span style='color:#F59E0B'>{target_firm}</span>", unsafe_allow_html=True)
+                        
+                        # Group by Applicant (Client)
+                        client_counts = client_data.groupby('Data of Applicant - Legal Name in English').size().reset_index(name='Total Applications')
+                        client_counts = client_counts.sort_values(by='Total Applications', ascending=False)
+                        client_counts.insert(0, 'Rank', range(1, 1 + len(client_counts)))
+                        
+                        col_summ, col_det = st.columns([1, 2])
+                        
+                        with col_summ:
+                            st.markdown("**Client Ranking**")
+                            st.dataframe(client_counts, use_container_width=True, hide_index=True)
+                        
+                        with col_det:
+                            st.markdown("**Client Filing History (Annual Breakdown)**")
+                            # Detailed pivot
+                            client_pivot = client_data.groupby(['Data of Applicant - Legal Name in English', 'Year']).size().reset_index(name='Apps')
+                            client_pivot_table = client_pivot.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
+                            client_pivot_table['Total'] = client_pivot_table.sum(axis=1)
+                            client_pivot_table = client_pivot_table.sort_values(by='Total', ascending=False)
+                             # ADD RANK COLUMN
+                            client_pivot_table.insert(0, 'Rank', range(1, 1 + len(client_pivot_table)))
+                            st.dataframe(client_pivot_table, use_container_width=True)
+                    else:
+                        st.warning(f"No data found for {target_firm} in the selected years.")
 
             with tabs[5]:
                 df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
@@ -886,4 +903,3 @@ else:
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
             st.error("No valid data found. Check your CSV format.")
-
