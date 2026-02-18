@@ -7,6 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import hmac
 from datetime import datetime, timedelta
+import json
 
 # --- 1. PAGE CONFIG & KYRIX LUXURY THEME ---
 st.set_page_config(
@@ -921,69 +922,96 @@ else:
         else:
             st.error("No valid data found. Check your CSV format.")
     
-    # --- 7. MODE: TABLE OF COVERAGE ---
+# --- 7. MODE: TABLE OF COVERAGE ---
     elif app_mode == "Table of Coverage":
         st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
-            
-        # --- MANUAL INPUT SECTION (EDIT THESE VALUES MANUALLY HERE) ---
+        
+        # --- STORAGE LOGIC: PERSISTENT SETTINGS ---
+        # This file will be created in your folder to remember your inputs
+        SETTINGS_FILE = "coverage_settings.json"
+
+        def load_settings():
+            if os.path.exists(SETTINGS_FILE):
+                try:
+                    with open(SETTINGS_FILE, "r") as f:
+                        return json.load(f)
+                except:
+                    return {}
+            return {}
+
+        def save_settings(key, value):
+            current_settings = load_settings()
+            current_settings[key] = value
+            with open(SETTINGS_FILE, "w") as f:
+                json.dump(current_settings, f)
+
+        saved_data = load_settings()
+
+        # --- AUTOMATIC DATE LOGIC ---
+        db_file_path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
+        if os.path.exists(db_file_path):
+            file_tstamp = os.path.getmtime(db_file_path)
+            auto_date = datetime.fromtimestamp(file_tstamp).strftime('%d %B %Y')
+        else:
+            auto_date = "Database File Not Found"
+
+        # --- MANUAL INPUT SECTION (SAVES AUTOMATICALLY) ---
         st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
         with st.expander("Update Coverage Numbers & Dates"):
-            # 1. Database Update Date
-            db_update_date = st.text_input("Latest Database Upload Date:", value="16 February 2026")
             
-            # 2. MoE Counts (Manual)
+            # 1. Update Date (Defaults to file date, but saves if you change it)
+            db_val = st.text_input("Latest Database Upload Date:", value=saved_data.get("db_date", auto_date))
+            if db_val != saved_data.get("db_date"):
+                save_settings("db_date", db_val)
+            
+            # 2. MoE Counts (Saves to file)
+            st.markdown("**MoE Application Numbers:**")
             col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
             moe_counts = {}
-            with col_m1: moe_counts['Type 1'] = st.text_input("MoE Count (Type 1)", "0")
-            with col_m2: moe_counts['Type 2'] = st.text_input("MoE Count (Type 2)", "0")
-            with col_m3: moe_counts['Type 3'] = st.text_input("MoE Count (Type 3)", "0")
-            with col_m4: moe_counts['Type 4'] = st.text_input("MoE Count (Type 4)", "0")
-            with col_m5: moe_counts['Type 5'] = st.text_input("MoE Count (Type 5)", "0")
-            
-            # 3. Dates Covered (Manual)
-            date_coverage = {}
-            st.markdown("**Dates Covered per Type:**")
-            date_coverage['Type 1'] = st.text_input("Dates Covered (Type 1)", "Jan 20XX - Dec 20XX")
-            date_coverage['Type 2'] = st.text_input("Dates Covered (Type 2)", "Jan 20XX - Dec 20XX")
-            date_coverage['Type 3'] = st.text_input("Dates Covered (Type 3)", "Jan 20XX - Dec 20XX")
-            date_coverage['Type 4'] = st.text_input("Dates Covered (Type 4)", "Jan 20XX - Dec 20XX")
-            date_coverage['Type 5'] = st.text_input("Dates Covered (Type 5)", "Jan 20XX - Dec 20XX")
+            types = ["Type 1", "Type 2", "Type 3", "Type 4", "Type 5"]
+            cols = [col_m1, col_m2, col_m3, col_m4, col_m5]
 
-        # --- DISPLAY SECTION ---
+            for t, col in zip(types, cols):
+                with col:
+                    val = st.text_input(f"MoE {t}", value=saved_data.get(f"moe_{t}", "0"))
+                    moe_counts[t] = val
+                    if val != saved_data.get(f"moe_{t}"):
+                        save_settings(f"moe_{t}", val)
+            
+            # 3. Dates Covered (Saves to file)
+            st.markdown("**Dates Covered per Type:**")
+            date_coverage = {}
+            for t in types:
+                d_val = st.text_input(f"Dates {t}", value=saved_data.get(f"date_{t}", "Jan 1995 - Dec 2024"))
+                date_coverage[t] = d_val
+                if d_val != saved_data.get(f"date_{t}"):
+                    save_settings(f"date_{t}", d_val)
+
+        # --- DISPLAY SECTION (READS FROM SAVED DATA) ---
         st.markdown("---")
-        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_update_date}</span>", unsafe_allow_html=True)
+        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
         
-        # Calculation Logic (Automated - Based on loaded dataframe)
+        # Calculation for Database Coverage (Using de-duplicated df_main)
         if df_main is not None and not df_main.empty:
-            # We use df_main which is already de-duplicated by Application Number in the load function
+            # Counts unique application numbers per type
             our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
         else:
             our_counts = {}
 
-        # 1. TABLE 1: DATES COVERED
-        st.markdown("### 🗓️ Dates Covered by Application Type")
-        dates_data = []
-        for i in range(1, 6):
-            t_label = f"Type {i}"
-            dates_data.append({"Type of Application": t_label, "Dates Covered": date_coverage.get(t_label, "-")})
-        st.table(pd.DataFrame(dates_data))
+        # Table 1: Dates
+        dates_display = [{"Type of Application": t, "Dates Covered": date_coverage[t]} for t in types]
+        st.table(pd.DataFrame(dates_display))
 
-        # 2. TABLE 2: COVERAGE COMPARISON
-        st.markdown("### 📊 Database Coverage vs. MoE Baseline")
-        coverage_data = []
-        for i in range(1, 6):
-            t_label = f"Type {i}"
-            # Automated Count from System
-            sys_count = our_counts.get(str(i), 0) # Assumes 'Application Type (ID)' is just the number/string like "1" or "Type 1"
-            # Try to match the key format from df_main
-            if sys_count == 0:
-                 # Fallback if the CSV uses "Type 1" string instead of just "1"
-                 sys_count = our_counts.get(f"Type {i}", 0)
+        # Table 2: Coverage
+        coverage_display = []
+        for t in types:
+            # Extract number (e.g., "1" from "Type 1") to match CSV data
+            type_num = t.split(" ")[1]
+            sys_count = our_counts.get(type_num, our_counts.get(t, 0))
             
-            coverage_data.append({
-                "Type of Application": t_label,
-                "Number of Applications based on MoE": moe_counts.get(t_label, "0"),
+            coverage_display.append({
+                "Type of Application": t,
+                "Number of Applications based on MoE": moe_counts[t],
                 "Our Database Coverage (Unique Apps)": f"{sys_count:,}"
             })
-        
-        st.table(pd.DataFrame(coverage_data))
+        st.table(pd.DataFrame(coverage_display))
