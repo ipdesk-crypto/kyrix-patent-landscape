@@ -169,7 +169,6 @@ def get_cutoff_dates():
     return c18, c30
 
 # Helper for vertical lines on Integer Year Axis
-# UPDATED: Now adds to Legend instead of text labels
 def add_cutoff_lines_numeric_axis(fig, c18, c30):
     c18_dec = c18.year + (c18.month - 1) / 12
     c30_dec = c30.year + (c30.month - 1) / 12
@@ -235,6 +234,12 @@ def load_and_preprocess_all():
         # Do NOT drop rows if PriorityDate is missing, to preserve Application Counts
         df_analysis = df.dropna(subset=['AppDate']).copy()
         
+        # --- CRITICAL UPDATE: DE-DUPLICATION FOR ANALYSIS ---
+        # Ensure that we only have ONE row per Application Number for the Analysis Engine.
+        # This prevents double counting if the source file has multiple rows for one patent.
+        if 'Application Number' in df_analysis.columns:
+            df_analysis = df_analysis.drop_duplicates(subset=['Application Number'], keep='first')
+
         if not df_analysis.empty:
             # --- STRICT CASE INSENSITIVITY NORMALIZATION ---
             # Normalizing Applicant Name to Uppercase to ensure counts are accurate regardless of input case
@@ -250,12 +255,17 @@ def load_and_preprocess_all():
             df_analysis['Priority_Month'] = df_analysis['PriorityDate'].dt.to_period('M').dt.to_timestamp()
             
             df_analysis['Firm'] = df_analysis['Data of Agent - Name in English'].replace("-", "DIRECT FILING").str.strip().str.upper()
+            
+            # IPC handling (Done on the search/analysis filtered DF usually, but expanding here for tabs that need it)
+            # Note: df_exp IS exploded, so it will have duplicates of Application Number. 
+            # We ONLY use df_exp for IPC charts. We use df_analysis for counting patents.
             df_analysis['IPC_Raw'] = df_analysis['Classification'].astype(str).str.split(',')
             df_exp = df_analysis.explode('IPC_Raw')
             df_exp['IPC_Clean'] = df_exp['IPC_Raw'].str.strip().str.upper()
             df_exp = df_exp[~df_exp['IPC_Clean'].str.contains("NO CLASSIFICATION|NAN|NONE|-", na=False)]
             df_exp['IPC_Class3'] = df_exp['IPC_Clean'].str[:3] 
             df_exp['IPC_Section'] = df_exp['IPC_Clean'].str[:1]
+            
             return df_search, col_map, df_analysis, df_exp
         else:
             return df_search, col_map, pd.DataFrame(), pd.DataFrame()
@@ -292,7 +302,8 @@ else:
         logo = get_logo()
         if logo: st.image(logo)
         st.markdown("## SYSTEM MODE")
-        app_mode = st.radio("SELECT VIEW:", ["Intelligence Search", "Strategic Analysis"])
+        # UPDATED: Added Table of Coverage
+        app_mode = st.radio("SELECT VIEW:", ["Intelligence Search", "Strategic Analysis", "Table of Coverage"])
         st.markdown("---")
         if app_mode == "Intelligence Search":
             st.markdown("### GLOBAL COMMAND")
@@ -310,7 +321,7 @@ else:
                         if col not in other_fields and col not in ['Abstract in English', 'Title in English']:
                             val = st.text_input(col, key=f"ex_{col}")
                             if val: field_filters[col] = val
-        else:
+        elif app_mode == "Strategic Analysis":
             st.markdown("### ANALYTICS FILTERS")
             if df_main is not None and not df_main.empty:
                 all_types = sorted(df_main['Application Type (ID)'].unique())
@@ -327,12 +338,17 @@ else:
             for field, f_query in field_filters.items():
                 if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
             res = df_search[mask]
-            st.markdown(f'<div class="metric-badge">● {len(res)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
+            
+            # --- STRICT DE-DUPLICATION FOR DISPLAY AND COUNT ---
+            # Even if the search found multiple rows (due to dirty data), we only show unique Patents
+            res_unique = res.drop_duplicates(subset=['Application Number'])
+            
+            st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
             tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
             with tab_list:
-                if res.empty: st.info("No records match your query.")
+                if res_unique.empty: st.info("No records match your query.")
                 else:
-                    for idx, row in res.head(50).iterrows():
+                    for idx, row in res_unique.head(50).iterrows():
                         st.markdown(f"""
                         <div class="patent-card">
                             <div class="patent-title">{row['Title in English']}</div>
@@ -345,15 +361,16 @@ else:
                             <div class="patent-snippet">{row['Abstract in English']}</div>
                         </div>
                         """, unsafe_allow_html=True)
-            with tab_grid: st.dataframe(res, use_container_width=True, hide_index=True)
+            with tab_grid: st.dataframe(res_unique, use_container_width=True, hide_index=True)
             with tab_dossier:
-                if res.empty: st.info("No records.")
+                if res_unique.empty: st.info("No records.")
                 else:
-                    res = res.copy()
-                    res['Display_Label'] = res.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
-                    choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res['Display_Label'].unique())
+                    res_unique = res_unique.copy()
+                    res_unique['Display_Label'] = res_unique.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
+                    choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res_unique['Display_Label'].unique())
                     choice_number = choice_label.split(" | ")[0]
-                    row = res[res['Application Number'] == choice_number].iloc[0]
+                    # Select from the unique result set
+                    row = res_unique[res_unique['Application Number'] == choice_number].iloc[0]
                     st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
                     st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
                     e_cols = [c for c, t in col_map.items() if t == "Enriched"]
@@ -369,7 +386,7 @@ else:
                     st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
     
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
-    else:
+    elif app_mode == "Strategic Analysis":
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
             # UPDATED TAB LIST: Added "Applicant Intelligence" and "Firm's Client Lists"
@@ -903,3 +920,70 @@ else:
                     st.dataframe(h_growth.pivot(index='IPC_Class3', columns='Year', values='Apps').fillna(0).astype(int), use_container_width=True)
         else:
             st.error("No valid data found. Check your CSV format.")
+    
+    # --- 7. MODE: TABLE OF COVERAGE ---
+    elif app_mode == "Table of Coverage":
+        st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
+        
+        # --- MANUAL INPUT SECTION (EDIT THESE VALUES MANUALLY HERE) ---
+        st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
+        with st.expander("Update Coverage Numbers & Dates"):
+            # 1. Database Update Date
+            db_update_date = st.text_input("Latest Database Upload Date:", value="23 January 2026")
+            
+            # 2. MoE Counts (Manual)
+            col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+            moe_counts = {}
+            with col_m1: moe_counts['Type 1'] = st.text_input("MoE Count (Type 1)", "0")
+            with col_m2: moe_counts['Type 2'] = st.text_input("MoE Count (Type 2)", "0")
+            with col_m3: moe_counts['Type 3'] = st.text_input("MoE Count (Type 3)", "0")
+            with col_m4: moe_counts['Type 4'] = st.text_input("MoE Count (Type 4)", "0")
+            with col_m5: moe_counts['Type 5'] = st.text_input("MoE Count (Type 5)", "0")
+            
+            # 3. Dates Covered (Manual)
+            date_coverage = {}
+            st.markdown("**Dates Covered per Type:**")
+            date_coverage['Type 1'] = st.text_input("Dates Covered (Type 1)", "Jan 20XX - Dec 20XX")
+            date_coverage['Type 2'] = st.text_input("Dates Covered (Type 2)", "Jan 20XX - Dec 20XX")
+            date_coverage['Type 3'] = st.text_input("Dates Covered (Type 3)", "Jan 20XX - Dec 20XX")
+            date_coverage['Type 4'] = st.text_input("Dates Covered (Type 4)", "Jan 20XX - Dec 20XX")
+            date_coverage['Type 5'] = st.text_input("Dates Covered (Type 5)", "Jan 20XX - Dec 20XX")
+
+        # --- DISPLAY SECTION ---
+        st.markdown("---")
+        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_update_date}</span>", unsafe_allow_html=True)
+        
+        # Calculation Logic (Automated - Based on loaded dataframe)
+        if df_main is not None and not df_main.empty:
+            # We use df_main which is already de-duplicated by Application Number in the load function
+            our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
+        else:
+            our_counts = {}
+
+        # 1. TABLE 1: DATES COVERED
+        st.markdown("### 🗓️ Dates Covered by Application Type")
+        dates_data = []
+        for i in range(1, 6):
+            t_label = f"Type {i}"
+            dates_data.append({"Type of Application": t_label, "Dates Covered": date_coverage.get(t_label, "-")})
+        st.table(pd.DataFrame(dates_data))
+
+        # 2. TABLE 2: COVERAGE COMPARISON
+        st.markdown("### 📊 Database Coverage vs. MoE Baseline")
+        coverage_data = []
+        for i in range(1, 6):
+            t_label = f"Type {i}"
+            # Automated Count from System
+            sys_count = our_counts.get(str(i), 0) # Assumes 'Application Type (ID)' is just the number/string like "1" or "Type 1"
+            # Try to match the key format from df_main
+            if sys_count == 0:
+                 # Fallback if the CSV uses "Type 1" string instead of just "1"
+                 sys_count = our_counts.get(f"Type {i}", 0)
+            
+            coverage_data.append({
+                "Type of Application": t_label,
+                "Number of Applications based on MoE": moe_counts.get(t_label, "0"),
+                "Our Database Coverage (Unique Apps)": f"{sys_count:,}"
+            })
+        
+        st.table(pd.DataFrame(coverage_data))
