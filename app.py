@@ -924,23 +924,12 @@ else:
     # --- 7. MODE: TABLE OF COVERAGE ---
     elif app_mode == "Table of Coverage":
         st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
-        # --- AUTOMATIC DATE LOGIC ---
-        # This looks at the actual file on the server and sees when it was last changed/uploaded
-        db_file_path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
-        
-        if os.path.exists(db_file_path):
-            # Get the timestamp of the last file update
-            file_tstamp = os.path.getmtime(db_file_path)
-            # Format it to "16 February 2026"
-            auto_date = datetime.fromtimestamp(file_tstamp).strftime('%d %B %Y')
-        else:
-            auto_date = "Database File Not Found"
             
         # --- MANUAL INPUT SECTION (EDIT THESE VALUES MANUALLY HERE) ---
         st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
         with st.expander("Update Coverage Numbers & Dates"):
             # 1. Database Update Date
-            db_update_date = st.text_input("Latest Database Upload Date:", value="23 January 2026")
+            db_update_date = st.text_input("Latest Database Upload Date:", value="16 February 2026")
             
             # 2. MoE Counts (Manual)
             col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
