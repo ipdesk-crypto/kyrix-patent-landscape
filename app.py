@@ -927,7 +927,7 @@ else:
         st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
         
         # --- STORAGE LOGIC: PERSISTENT SETTINGS ---
-        # This file is saved on the server's disk so data survives refreshes and sleep mode
+        # This file is physically saved on the server to survive reboots/sleep
         SETTINGS_FILE = "coverage_settings.json"
 
         def load_settings():
@@ -955,16 +955,17 @@ else:
         else:
             auto_date = "Database File Not Found"
 
-        # --- MANUAL INPUT SECTION (SAVES AUTOMATICALLY) ---
+        # --- MANUAL INPUT SECTION (SAVES PERMANENTLY) ---
         st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
         with st.expander("Update Coverage Numbers & Dates"):
+            st.info("Changes made here are saved to the server disk and will not be erased on reboot.")
             
-            # 1. Update Date (Defaults to file date, but saves if you change it)
+            # 1. Update Date
             db_val = st.text_input("Latest Database Upload Date:", value=saved_data.get("db_date", auto_date))
             if db_val != saved_data.get("db_date"):
                 save_settings("db_date", db_val)
             
-            # 2. MoE Counts (Saves to file)
+            # 2. MoE Counts
             st.markdown("**MoE Application Numbers:**")
             col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
             moe_counts = {}
@@ -973,29 +974,27 @@ else:
 
             for t, col in zip(types, cols):
                 with col:
-                    # Logic: use the saved value from the file; if no file exists, use "0"
+                    # Retrieves saved value from JSON; defaults to "0" if empty
                     val = st.text_input(f"MoE {t}", value=saved_data.get(f"moe_{t}", "0"))
                     moe_counts[t] = val
                     if val != saved_data.get(f"moe_{t}"):
                         save_settings(f"moe_{t}", val)
             
-            # 3. Dates Covered (Saves to file)
+            # 3. Dates Covered
             st.markdown("**Dates Covered per Type:**")
             date_coverage = {}
             for t in types:
-                # Logic: use the saved value from the file; if no file exists, use default date
+                # Retrieves saved date range from JSON
                 d_val = st.text_input(f"Dates {t}", value=saved_data.get(f"date_{t}", "Jan 1995 - Dec 2024"))
                 date_coverage[t] = d_val
                 if d_val != saved_data.get(f"date_{t}"):
                     save_settings(f"date_{t}", d_val)
 
-        # --- DISPLAY SECTION (READS FROM SAVED DATA) ---
+        # --- DISPLAY SECTION ---
         st.markdown("---")
         st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
         
-        # Calculation for Database Coverage (Using de-duplicated df_main)
         if df_main is not None and not df_main.empty:
-            # Counts unique application numbers per type
             our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
         else:
             our_counts = {}
@@ -1007,10 +1006,8 @@ else:
         # Table 2: Coverage
         coverage_display = []
         for t in types:
-            # Extract number (e.g., "1" from "Type 1") to match CSV data
             type_num = t.split(" ")[1]
             sys_count = our_counts.get(type_num, our_counts.get(t, 0))
-            
             coverage_display.append({
                 "Type of Application": t,
                 "Number of Applications based on MoE": moe_counts[t],
