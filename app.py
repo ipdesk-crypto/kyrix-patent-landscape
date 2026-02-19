@@ -927,8 +927,8 @@ else:
     elif app_mode == "Table of Coverage":
         st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
         
-        # --- PERMANENT STORAGE LOGIC ---
-        # This file stays on the disk even if the app reboots or sleeps
+        # --- STORAGE LOGIC: PERSISTENT SETTINGS ---
+        # This file will be created in your folder to remember your inputs
         SETTINGS_FILE = "coverage_settings.json"
 
         def load_settings():
@@ -946,7 +946,6 @@ else:
             with open(SETTINGS_FILE, "w") as f:
                 json.dump(current_settings, f)
 
-        # Load your saved data into the app memory
         saved_data = load_settings()
 
         # --- AUTOMATIC DATE LOGIC ---
@@ -960,9 +959,8 @@ else:
         # --- MANUAL INPUT SECTION (SAVES AUTOMATICALLY) ---
         st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
         with st.expander("Update Coverage Numbers & Dates"):
-            st.info("Information entered here is saved permanently and survives app reboots.")
             
-            # 1. Update Date (Checks saved_data first, then defaults to auto_date)
+            # 1. Update Date (Defaults to file date, but saves if you change it)
             db_val = st.text_input("Latest Database Upload Date:", value=saved_data.get("db_date", auto_date))
             if db_val != saved_data.get("db_date"):
                 save_settings("db_date", db_val)
@@ -976,7 +974,6 @@ else:
 
             for t, col in zip(types, cols):
                 with col:
-                    # Secret: value=saved_data.get(...) ensures it remembers the last entry
                     val = st.text_input(f"MoE {t}", value=saved_data.get(f"moe_{t}", "0"))
                     moe_counts[t] = val
                     if val != saved_data.get(f"moe_{t}"):
@@ -991,12 +988,13 @@ else:
                 if d_val != saved_data.get(f"date_{t}"):
                     save_settings(f"date_{t}", d_val)
 
-        # --- DISPLAY SECTION (READS FROM PERMANENT DATA) ---
+        # --- DISPLAY SECTION (READS FROM SAVED DATA) ---
         st.markdown("---")
         st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
         
-        # Calculation for Database Coverage (Based on your unique app counts)
+        # Calculation for Database Coverage (Using de-duplicated df_main)
         if df_main is not None and not df_main.empty:
+            # Counts unique application numbers per type
             our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
         else:
             our_counts = {}
@@ -1008,7 +1006,8 @@ else:
         # Table 2: Coverage
         coverage_display = []
         for t in types:
-            type_num = t.split(" ")[1] 
+            # Extract number (e.g., "1" from "Type 1") to match CSV data
+            type_num = t.split(" ")[1]
             sys_count = our_counts.get(type_num, our_counts.get(t, 0))
             
             coverage_display.append({
