@@ -926,11 +926,11 @@ else:
     elif app_mode == "Table of Coverage":
         st.markdown('<div class="metric-badge">DATABASE COVERAGE STATISTICS</div>', unsafe_allow_html=True)
         
-        # --- PERMANENT STORAGE FILE PATH ---
-        # This file stays on the server even if the app goes offline
-        SETTINGS_FILE = "persistent_coverage_data.json"
+        # --- STORAGE LOGIC: PERSISTENT SETTINGS ---
+        # This file is saved on the server's disk so data survives refreshes and sleep mode
+        SETTINGS_FILE = "coverage_settings.json"
 
-        def load_persistent_data():
+        def load_settings():
             if os.path.exists(SETTINGS_FILE):
                 try:
                     with open(SETTINGS_FILE, "r") as f:
@@ -939,36 +939,33 @@ else:
                     return {}
             return {}
 
-        def save_persistent_data(key, value):
-            data = load_persistent_data()
-            data[key] = value
+        def save_settings(key, value):
+            current_settings = load_settings()
+            current_settings[key] = value
             with open(SETTINGS_FILE, "w") as f:
-                json.dump(data, f)
+                json.dump(current_settings, f)
 
-        # Load the data once at the start
-        stored = load_persistent_data()
+        saved_data = load_settings()
 
-        # --- AUTOMATIC DATE LOGIC (FOR GITHUB UPLOAD REFERENCE) ---
+        # --- AUTOMATIC DATE LOGIC ---
         db_file_path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
         if os.path.exists(db_file_path):
             file_tstamp = os.path.getmtime(db_file_path)
             auto_date = datetime.fromtimestamp(file_tstamp).strftime('%d %B %Y')
         else:
-            auto_date = "File Not Found"
+            auto_date = "Database File Not Found"
 
-        # --- MANUAL INPUT SECTION (SAVES AUTOMATICALLY ON ENTRY) ---
-        st.markdown("### ⚙️ PERMANENT DATA CONFIGURATION")
-        with st.expander("Click to Edit MoE Numbers and Coverage Dates"):
-            st.info("Information entered here is saved permanently to the server and survives app refreshes.")
+        # --- MANUAL INPUT SECTION (SAVES AUTOMATICALLY) ---
+        st.markdown("### ⚙️ DATA CONFIGURATION (MANUAL INPUTS)")
+        with st.expander("Update Coverage Numbers & Dates"):
             
-            # 1. Database Update Date
-            current_db_date = st.text_input("Latest Database Upload Date:", value=stored.get("db_date", auto_date))
-            if current_db_date != stored.get("db_date"):
-                save_persistent_data("db_date", current_db_date)
+            # 1. Update Date (Defaults to file date, but saves if you change it)
+            db_val = st.text_input("Latest Database Upload Date:", value=saved_data.get("db_date", auto_date))
+            if db_val != saved_data.get("db_date"):
+                save_settings("db_date", db_val)
             
-            # 2. MoE Application Counts
-            st.markdown("---")
-            st.markdown("**1st Column: Number of Applications based on MoE**")
+            # 2. MoE Counts (Saves to file)
+            st.markdown("**MoE Application Numbers:**")
             col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
             moe_counts = {}
             types = ["Type 1", "Type 2", "Type 3", "Type 4", "Type 5"]
@@ -976,55 +973,47 @@ else:
 
             for t, col in zip(types, cols):
                 with col:
-                    # Load saved value or default to "0"
-                    saved_val = stored.get(f"moe_{t}", "0")
-                    input_val = st.text_input(f"{t} MoE Count", value=saved_val)
-                    moe_counts[t] = input_val
-                    if input_val != saved_val:
-                        save_persistent_data(f"moe_{t}", input_val)
-
-            # 3. Dates Covered
-            st.markdown("---")
-            st.markdown("**2nd Column: Dates Covered by each Type**")
+                    # Logic: use the saved value from the file; if no file exists, use "0"
+                    val = st.text_input(f"MoE {t}", value=saved_data.get(f"moe_{t}", "0"))
+                    moe_counts[t] = val
+                    if val != saved_data.get(f"moe_{t}"):
+                        save_settings(f"moe_{t}", val)
+            
+            # 3. Dates Covered (Saves to file)
+            st.markdown("**Dates Covered per Type:**")
             date_coverage = {}
-            d_cols = st.columns(5)
-            for i, t in enumerate(types):
-                with d_cols[i]:
-                    saved_date = stored.get(f"date_{t}", "Jan 1995 - Dec 2024")
-                    input_date = st.text_input(f"{t} Dates", value=saved_date)
-                    date_coverage[t] = input_date
-                    if input_date != saved_date:
-                        save_persistent_data(f"date_{t}", input_date)
-
-        # --- FINAL DISPLAY SECTION ---
-        st.markdown("---")
-        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{current_db_date}</span>", unsafe_allow_html=True)
-        
-        # Calculate Unique Application Counts from the de-duplicated df_main
-        if df_main is not None and not df_main.empty:
-            # Note: df_main was already de-duplicated in load_and_preprocess_all()
-            sys_counts = df_main['Application Type (ID)'].value_counts().to_dict()
-        else:
-            sys_counts = {}
-
-        # Display the Final Tables
-        c1, c2 = st.columns(2)
-        
-        with c1:
-            st.markdown("### 📊 MoE vs Our Database")
-            coverage_rows = []
             for t in types:
-                t_id = t.split(" ")[1] # Extract "1" from "Type 1"
-                # Search for both "1" and "Type 1" formats in the data
-                count_val = sys_counts.get(t_id, sys_counts.get(t, 0))
-                coverage_rows.append({
-                    "Type": t,
-                    "MoE Baseline": moe_counts[t],
-                    "Our Database (Unique)": f"{count_val:,}"
-                })
-            st.table(pd.DataFrame(coverage_rows))
+                # Logic: use the saved value from the file; if no file exists, use default date
+                d_val = st.text_input(f"Dates {t}", value=saved_data.get(f"date_{t}", "Jan 1995 - Dec 2024"))
+                date_coverage[t] = d_val
+                if d_val != saved_data.get(f"date_{t}"):
+                    save_settings(f"date_{t}", d_val)
 
-        with c2:
-            st.markdown("### 🗓️ Date Coverage Range")
-            date_rows = [{"Type": t, "Coverage Range": date_coverage[t]} for t in types]
-            st.table(pd.DataFrame(date_rows))
+        # --- DISPLAY SECTION (READS FROM SAVED DATA) ---
+        st.markdown("---")
+        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
+        
+        # Calculation for Database Coverage (Using de-duplicated df_main)
+        if df_main is not None and not df_main.empty:
+            # Counts unique application numbers per type
+            our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
+        else:
+            our_counts = {}
+
+        # Table 1: Dates
+        dates_display = [{"Type of Application": t, "Dates Covered": date_coverage[t]} for t in types]
+        st.table(pd.DataFrame(dates_display))
+
+        # Table 2: Coverage
+        coverage_display = []
+        for t in types:
+            # Extract number (e.g., "1" from "Type 1") to match CSV data
+            type_num = t.split(" ")[1]
+            sys_count = our_counts.get(type_num, our_counts.get(t, 0))
+            
+            coverage_display.append({
+                "Type of Application": t,
+                "Number of Applications based on MoE": moe_counts[t],
+                "Our Database Coverage (Unique Apps)": f"{sys_count:,}"
+            })
+        st.table(pd.DataFrame(coverage_display))
