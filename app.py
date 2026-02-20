@@ -1003,6 +1003,7 @@ else:
         dates_display = [{"Type of Application": t, "Dates Covered": date_coverage[t]} for t in types]
         # Convert to DataFrame and hide the index column (0-4)
         df_dates = pd.DataFrame(dates_display)
+        df_dates.index = [""] * len(df_dates)
         st.table(df_dates.style.hide(axis="index"))
 
         # Table 2: Coverage
@@ -1029,4 +1030,5 @@ else:
             })
         # Convert to DataFrame and hide the index column (0-4)
         df_coverage = pd.DataFrame(coverage_display)
+        df_coverage.index = [""] * len(df_coverage)
         st.table(df_coverage.style.hide(axis="index"))
