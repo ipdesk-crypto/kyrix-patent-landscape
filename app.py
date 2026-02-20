@@ -990,7 +990,7 @@ else:
 
         # --- DISPLAY SECTION (READS FROM SAVED DATA) ---
         st.markdown("---")
-        st.markdown(f"#### 📅 Latest Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
+        st.markdown(f"#### 📅 Latest Kyrix Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
         
         # Calculation for Database Coverage (Using de-duplicated df_main)
         if df_main is not None and not df_main.empty:
@@ -1001,7 +1001,7 @@ else:
 
         # Table 1: Dates
         dates_display = [{"Type of Application": t, "Dates Covered": date_coverage[t]} for t in types]
-        st.table(pd.DataFrame(dates_display))
+        st.table(pd.DataFrame(dates_display).style.hide(axis="index"))
 
         # Table 2: Coverage
         coverage_display = []
@@ -1010,9 +1010,18 @@ else:
             type_num = t.split(" ")[1]
             sys_count = our_counts.get(type_num, our_counts.get(t, 0))
             
+            # Safely parse MoE count to integer to calculate Delta
+            try:
+                moe_val = int(str(moe_counts[t]).replace(",", "").strip())
+            except ValueError:
+                moe_val = 0
+                
+            delta = moe_val - sys_count
+            
             coverage_display.append({
                 "Type of Application": t,
                 "Number of Applications based on MoE": moe_counts[t],
-                "Our Database Coverage (Unique Apps)": f"{sys_count:,}"
+                "Kyrix Database Coverage (Unique Apps)": f"{sys_count:,}",
+                "Delta": f"{delta:,}"
             })
-        st.table(pd.DataFrame(coverage_display))
+        st.table(pd.DataFrame(coverage_display).style.hide(axis="index"))
