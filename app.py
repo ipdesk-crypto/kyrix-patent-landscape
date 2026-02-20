@@ -1001,7 +1001,9 @@ else:
 
         # Table 1: Dates
         dates_display = [{"Type of Application": t, "Dates Covered": date_coverage[t]} for t in types]
-        st.table(pd.DataFrame(dates_display).style.hide(axis="index"))
+        # Convert to DataFrame and hide the index column (0-4)
+        df_dates = pd.DataFrame(dates_display)
+        st.table(df_dates.style.hide(axis="index"))
 
         # Table 2: Coverage
         coverage_display = []
@@ -1012,7 +1014,8 @@ else:
             
             # Safely parse MoE count to integer to calculate Delta
             try:
-                moe_val = int(str(moe_counts[t]).replace(",", "").strip())
+                moe_raw = str(moe_counts[t]).replace(",", "").strip()
+                moe_val = int(moe_raw) if moe_raw else 0
             except ValueError:
                 moe_val = 0
                 
@@ -1024,4 +1027,6 @@ else:
                 "Kyrix Database Coverage (Unique Apps)": f"{sys_count:,}",
                 "Delta": f"{delta:,}"
             })
-        st.table(pd.DataFrame(coverage_display).style.hide(axis="index"))
+        # Convert to DataFrame and hide the index column (0-4)
+        df_coverage = pd.DataFrame(coverage_display)
+        st.table(df_coverage.style.hide(axis="index"))
