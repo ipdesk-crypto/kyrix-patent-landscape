@@ -224,16 +224,27 @@ def load_and_preprocess_all():
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
         
-        # --- MASTER DEDUPLICATION BY APPLICATION NUMBER ---
+        # --- CRITICAL FIX: Strip whitespace from column names ---
+        df_search.columns = [c.strip() for c in df_search.columns]
+
+        # Clean up Application Type (ID) to prevent counting errors (e.g. "1 " vs "1")
+        if 'Application Type (ID)' in df_search.columns:
+            df_search['Application Type (ID)'] = df_search['Application Type (ID)'].astype(str).str.strip()
+
+        # --- MASTER DEDUPLICATION BY APPLICATION NUMBER & TYPE ---
         if 'Application Number' in df_search.columns:
             # Create a cleaned version for exact matching
             df_search['App_Num_Clean'] = df_search['Application Number'].astype(str).str.strip().str.upper()
             
+            dedup_subset = ['App_Num_Clean']
+            if 'Application Type (ID)' in df_search.columns:
+                dedup_subset.append('Application Type (ID)')
+            
             # Protect empty/invalid IDs so we do NOT miss data without numbers
             mask_valid = (df_search['App_Num_Clean'] != "") & (df_search['App_Num_Clean'] != "-") & (df_search['App_Num_Clean'] != "NAN") & df_search['App_Num_Clean'].notna()
             
-            # Deduplicate strictly on the valid App Numbers
-            df_valid = df_search[mask_valid].drop_duplicates(subset=['App_Num_Clean'], keep='first')
+            # Deduplicate strictly on the valid App Numbers + Type
+            df_valid = df_search[mask_valid].drop_duplicates(subset=dedup_subset, keep='first')
             df_invalid = df_search[~mask_valid]
             
             # Recombine and drop the temporary matching column
@@ -242,9 +253,6 @@ def load_and_preprocess_all():
         # ----------------------------------------------------
 
         df = df_search.copy()
-        
-        # --- CRITICAL FIX: Strip whitespace from column names ---
-        df.columns = [c.strip() for c in df.columns]
         
         # --- PARSE DATES (Enhanced with dayfirst=True for safety) ---
         df['AppDate'] = pd.to_datetime(df['Application Date'], errors='coerce', dayfirst=True)
@@ -1034,7 +1042,7 @@ else:
             except ValueError:
                 moe_val = 0
                 
-            delta = sys_count - moe_val 
+            delta = moe_val - sys_count
             
             coverage_display.append({
                 "Type of Application": t,
