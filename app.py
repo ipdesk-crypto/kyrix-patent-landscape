@@ -237,10 +237,26 @@ def load_and_preprocess_all():
         df_analysis = df.dropna(subset=['AppDate']).copy()
         
         # --- CRITICAL UPDATE: DE-DUPLICATION FOR ANALYSIS ---
-        # Ensure that we only have ONE row per Application Number for the Analysis Engine.
-        # This prevents double counting if the source file has multiple rows for one patent.
+        # Ensure that we only have ONE row per Application Number per Application Type.
+        # This prevents double counting while protecting different patents sharing an ID or missing IDs.
         if 'Application Number' in df_analysis.columns:
-            df_analysis = df_analysis.drop_duplicates(subset=['Application Number'], keep='first')
+            df_analysis['App_Num_Clean'] = df_analysis['Application Number'].astype(str).str.strip().str.upper()
+            dedup_subset = ['App_Num_Clean']
+            if 'Application Type (ID)' in df_analysis.columns:
+                df_analysis['App_Type_Clean'] = df_analysis['Application Type (ID)'].astype(str).str.strip()
+                dedup_subset.append('App_Type_Clean')
+                
+            mask_valid = (df_analysis['App_Num_Clean'] != "") & (df_analysis['App_Num_Clean'] != "-") & (df_analysis['App_Num_Clean'] != "NAN") & df_analysis['App_Num_Clean'].notna()
+            
+            df_valid = df_analysis[mask_valid].drop_duplicates(subset=dedup_subset, keep='first')
+            df_invalid = df_analysis[~mask_valid]
+            
+            df_analysis = pd.concat([df_valid, df_invalid], ignore_index=True)
+            
+            drop_cols = ['App_Num_Clean']
+            if 'App_Type_Clean' in df_analysis.columns:
+                drop_cols.append('App_Type_Clean')
+            df_analysis = df_analysis.drop(columns=drop_cols)
 
         if not df_analysis.empty:
             # --- STRICT CASE INSENSITIVITY NORMALIZATION ---
@@ -343,7 +359,26 @@ else:
             
             # --- STRICT DE-DUPLICATION FOR DISPLAY AND COUNT ---
             # Even if the search found multiple rows (due to dirty data), we only show unique Patents
-            res_unique = res.drop_duplicates(subset=['Application Number'])
+            if 'Application Number' in res.columns:
+                res_temp = res.copy()
+                res_temp['App_Num_Clean'] = res_temp['Application Number'].astype(str).str.strip().str.upper()
+                dedup_subset = ['App_Num_Clean']
+                if 'Application Type (ID)' in res_temp.columns:
+                    res_temp['App_Type_Clean'] = res_temp['Application Type (ID)'].astype(str).str.strip()
+                    dedup_subset.append('App_Type_Clean')
+                
+                mask_valid = (res_temp['App_Num_Clean'] != "") & (res_temp['App_Num_Clean'] != "-") & (res_temp['App_Num_Clean'] != "NAN") & res_temp['App_Num_Clean'].notna()
+                res_valid = res_temp[mask_valid].drop_duplicates(subset=dedup_subset, keep='first')
+                res_invalid = res_temp[~mask_valid]
+                
+                res_unique = pd.concat([res_valid, res_invalid], ignore_index=True)
+                
+                drop_cols = ['App_Num_Clean']
+                if 'App_Type_Clean' in res_unique.columns:
+                    drop_cols.append('App_Type_Clean')
+                res_unique = res_unique.drop(columns=drop_cols)
+            else:
+                res_unique = res.copy()
             
             st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
             tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
