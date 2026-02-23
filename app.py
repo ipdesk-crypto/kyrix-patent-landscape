@@ -1042,7 +1042,7 @@ else:
             except ValueError:
                 moe_val = 0
                 
-            delta = moe_val - sys_count
+            delta = sys_count - moe_val 
             
             coverage_display.append({
                 "Type of Application": t,
