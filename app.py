@@ -223,6 +223,24 @@ def load_and_preprocess_all():
         category_row = df_raw.iloc[0] 
         col_map = {col: str(category_row[col]).strip() for col in df_raw.columns}
         df_search = df_raw.iloc[1:].reset_index(drop=True).fillna("-")
+        
+        # --- MASTER DEDUPLICATION BY APPLICATION NUMBER ---
+        if 'Application Number' in df_search.columns:
+            # Create a cleaned version for exact matching
+            df_search['App_Num_Clean'] = df_search['Application Number'].astype(str).str.strip().str.upper()
+            
+            # Protect empty/invalid IDs so we do NOT miss data without numbers
+            mask_valid = (df_search['App_Num_Clean'] != "") & (df_search['App_Num_Clean'] != "-") & (df_search['App_Num_Clean'] != "NAN") & df_search['App_Num_Clean'].notna()
+            
+            # Deduplicate strictly on the valid App Numbers
+            df_valid = df_search[mask_valid].drop_duplicates(subset=['App_Num_Clean'], keep='first')
+            df_invalid = df_search[~mask_valid]
+            
+            # Recombine and drop the temporary matching column
+            df_search = pd.concat([df_valid, df_invalid], ignore_index=True)
+            df_search = df_search.drop(columns=['App_Num_Clean'])
+        # ----------------------------------------------------
+
         df = df_search.copy()
         
         # --- CRITICAL FIX: Strip whitespace from column names ---
