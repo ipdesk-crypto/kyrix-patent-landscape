@@ -235,28 +235,6 @@ def load_and_preprocess_all():
         # --- CRITICAL FIX: Only drop rows where AppDate is missing ---
         # Do NOT drop rows if PriorityDate is missing, to preserve Application Counts
         df_analysis = df.dropna(subset=['AppDate']).copy()
-        
-        # --- CRITICAL UPDATE: DE-DUPLICATION FOR ANALYSIS ---
-        # Ensure that we only have ONE row per Application Number per Application Type.
-        # This prevents double counting while protecting different patents sharing an ID or missing IDs.
-        if 'Application Number' in df_analysis.columns:
-            df_analysis['App_Num_Clean'] = df_analysis['Application Number'].astype(str).str.strip().str.upper()
-            dedup_subset = ['App_Num_Clean']
-            if 'Application Type (ID)' in df_analysis.columns:
-                df_analysis['App_Type_Clean'] = df_analysis['Application Type (ID)'].astype(str).str.strip()
-                dedup_subset.append('App_Type_Clean')
-                
-            mask_valid = (df_analysis['App_Num_Clean'] != "") & (df_analysis['App_Num_Clean'] != "-") & (df_analysis['App_Num_Clean'] != "NAN") & df_analysis['App_Num_Clean'].notna()
-            
-            df_valid = df_analysis[mask_valid].drop_duplicates(subset=dedup_subset, keep='first')
-            df_invalid = df_analysis[~mask_valid]
-            
-            df_analysis = pd.concat([df_valid, df_invalid], ignore_index=True)
-            
-            drop_cols = ['App_Num_Clean']
-            if 'App_Type_Clean' in df_analysis.columns:
-                drop_cols.append('App_Type_Clean')
-            df_analysis = df_analysis.drop(columns=drop_cols)
 
         if not df_analysis.empty:
             # --- STRICT CASE INSENSITIVITY NORMALIZATION ---
@@ -342,10 +320,11 @@ else:
         elif app_mode == "Strategic Analysis":
             st.markdown("### ANALYTICS FILTERS")
             if df_main is not None and not df_main.empty:
-                all_types = sorted(df_main['Application Type (ID)'].unique())
+                # TYPE ERROR FIX: Ensure values are cast to string before sorting to prevent crashes
+                all_types = sorted(df_main['Application Type (ID)'].astype(str).unique())
                 selected_types = st.multiselect("Select Application Types:", all_types, default=all_types)
-                df_f = df_main[df_main['Application Type (ID)'].isin(selected_types)]
-                df_exp_f = df_exp[df_exp['Application Type (ID)'].isin(selected_types)]
+                df_f = df_main[df_main['Application Type (ID)'].astype(str).isin(selected_types)]
+                df_exp_f = df_exp[df_exp['Application Type (ID)'].astype(str).isin(selected_types)]
                 st.success(f"Records Analyzed: {len(df_f)}")
         if st.button("RESET SYSTEM"): st.rerun()
 
@@ -357,28 +336,7 @@ else:
                 if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
             res = df_search[mask]
             
-            # --- STRICT DE-DUPLICATION FOR DISPLAY AND COUNT ---
-            # Even if the search found multiple rows (due to dirty data), we only show unique Patents
-            if 'Application Number' in res.columns:
-                res_temp = res.copy()
-                res_temp['App_Num_Clean'] = res_temp['Application Number'].astype(str).str.strip().str.upper()
-                dedup_subset = ['App_Num_Clean']
-                if 'Application Type (ID)' in res_temp.columns:
-                    res_temp['App_Type_Clean'] = res_temp['Application Type (ID)'].astype(str).str.strip()
-                    dedup_subset.append('App_Type_Clean')
-                
-                mask_valid = (res_temp['App_Num_Clean'] != "") & (res_temp['App_Num_Clean'] != "-") & (res_temp['App_Num_Clean'] != "NAN") & res_temp['App_Num_Clean'].notna()
-                res_valid = res_temp[mask_valid].drop_duplicates(subset=dedup_subset, keep='first')
-                res_invalid = res_temp[~mask_valid]
-                
-                res_unique = pd.concat([res_valid, res_invalid], ignore_index=True)
-                
-                drop_cols = ['App_Num_Clean']
-                if 'App_Type_Clean' in res_unique.columns:
-                    drop_cols.append('App_Type_Clean')
-                res_unique = res_unique.drop(columns=drop_cols)
-            else:
-                res_unique = res.copy()
+            res_unique = res.copy()
             
             st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
             tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
@@ -453,10 +411,11 @@ else:
                         sel_years_growth = list(range(s_year, e_year + 1))
 
                 with c2:
-                    all_types_growth = sorted(df_f['Application Type (ID)'].unique())
+                    # TYPE ERROR FIX:
+                    all_types_growth = sorted(df_f['Application Type (ID)'].astype(str).unique())
                     sel_types_growth = st.multiselect("Filter Application Types:", all_types_growth, default=all_types_growth, key="growth_types_sel")
                 
-                df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].isin(sel_types_growth)]
+                df_growth_filtered = df_f[df_f['Year'].isin(sel_years_growth) & df_f['Application Type (ID)'].astype(str).isin(sel_types_growth)]
                 
                 if not df_growth_filtered.empty:
                     # REINDEX TO ENSURE ALL YEARS PRESENT
@@ -576,10 +535,11 @@ else:
                             sel_years_growth_p = []
 
                 with c2_p:
-                    all_types_p = sorted(df_priority['Application Type (ID)'].unique())
+                    # TYPE ERROR FIX:
+                    all_types_p = sorted(df_priority['Application Type (ID)'].astype(str).unique())
                     sel_types_p = st.multiselect("Filter Application Types:", all_types_p, default=all_types_p, key="growth_types_sel_2")
                 
-                df_growth_filtered_p = df_priority[df_priority['Priority_Year'].isin(sel_years_growth_p) & df_priority['Application Type (ID)'].isin(sel_types_p)]
+                df_growth_filtered_p = df_priority[df_priority['Priority_Year'].isin(sel_years_growth_p) & df_priority['Application Type (ID)'].astype(str).isin(sel_types_p)]
                 
                 if not df_growth_filtered_p.empty:
                     # REINDEX TO ENSURE ALL YEARS PRESENT
@@ -902,13 +862,14 @@ else:
                         s_year, e_year = st.slider("Select Year Range:", min_y, max_y, (min_y, max_y), key="ma_slider")
                         ma_years = list(range(s_year, e_year + 1))
                 with c3:
-                    all_av_types = sorted(df_f['Application Type (ID)'].unique())
+                    # TYPE ERROR FIX:
+                    all_av_types = sorted(df_f['Application Type (ID)'].astype(str).unique())
                     sel_ma_types = st.multiselect("Visible Types:", all_av_types, default=all_av_types)
                 
                 analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
                 work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
-                work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].isin(sel_ma_types))]
-                analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].isin(sel_ma_types))]
+                work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].astype(str).isin(sel_ma_types))]
+                analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].astype(str).isin(sel_ma_types))]
                 
                 if not work_df.empty:
                     f_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
