@@ -988,10 +988,10 @@ else:
         st.markdown("---")
         st.markdown(f"#### 📅 Latest Kyrix Database Update: <span style='color:#F59E0B'>{db_val}</span>", unsafe_allow_html=True)
         
-        # Calculation for Database Coverage (Using de-duplicated df_main)
-        if df_main is not None and not df_main.empty:
-            # Counts unique application numbers per type
-            our_counts = df_main['Application Type (ID)'].value_counts().to_dict()
+        # --- FIXED LOGIC: CALCULATION FOR DATABASE COVERAGE ---
+        # Uses df_search instead of df_main to match exactly the un-filtered counts from the Intelligence Search engine
+        if df_search is not None and not df_search.empty:
+            our_counts = df_search['Application Type (ID)'].astype(str).value_counts().to_dict()
         else:
             our_counts = {}
 
