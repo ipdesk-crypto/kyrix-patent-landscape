@@ -923,11 +923,12 @@ else:
                 df_f['EPD_Year'] = df_f['Earliest Priority Date'].dt.year
                 df_f['EPD_Month'] = df_f['Earliest Priority Date'].dt.strftime('%B')
 
-                # FIX FOR KEYERROR: Identify the 'Type' column dynamically (case-insensitive)
-                type_col = next((c for c in df_f.columns if c.strip().lower() == 'type'), None)
+                # Define the column name based on your CSV header
+                type_col = 'Application Type (ID)'
                 
-                if type_col is None:
-                    st.error("Column 'Type' not found in the dataset. Please check your CSV headers.")
+                # Check if the column exists to avoid further KeyErrors
+                if type_col not in df_f.columns:
+                    st.error(f"Column '{type_col}' not found. Available columns: {list(df_f.columns)}")
                 else:
                     available_years = sorted(df_f['EPD_Year'].dropna().unique().astype(int), reverse=True)
                     sel_yr_m = st.selectbox("Choose Year (Priority Date):", available_years, key="m_tab_sel")
@@ -937,13 +938,14 @@ else:
                     
                     # 2. Define Strict Ordering (Month Calendar & Type 5 at bottom)
                     m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                    # This list defines the stacking order from bottom to top
                     t_order = [5, 4, 3, 2, 1] 
                     
-                    # Force categorical ordering
+                    # Force categorical ordering for both Month and Type
                     yr_data['EPD_Month'] = pd.Categorical(yr_data['EPD_Month'], categories=m_order, ordered=True)
                     yr_data[type_col] = pd.Categorical(yr_data[type_col], categories=t_order, ordered=True)
 
-                    # Group by Month and the dynamic Type column
+                    # Group by Month and Type to get individual segment counts
                     counts = yr_data.groupby(['EPD_Month', type_col], observed=False).size().reset_index(name='Apps')
 
                     # Create the stacked bar chart
@@ -952,26 +954,40 @@ else:
                         x='EPD_Month', 
                         y='Apps', 
                         color=type_col, 
-                        text='Apps', 
+                        text='Apps', # Individual count for each type segment
                         height=600,
                         category_orders={"EPD_Month": m_order, type_col: t_order},
-                        labels={'EPD_Month': 'Month of Priority', 'Apps': 'Number of Apps'}
+                        color_discrete_sequence=px.colors.qualitative.Plotly # Distinct colors for each type
+                    )
+
+                    # Calculate totals for the top of the bars
+                    totals = counts.groupby('EPD_Month')['Apps'].sum().reset_index()
+                    
+                    # Add total labels at the very top of each stacked bar
+                    fig.add_scatter(
+                        x=totals['EPD_Month'], 
+                        y=totals['Apps'], 
+                        text=totals['Apps'], 
+                        mode='text',
+                        textposition='top center',
+                        showlegend=False,
+                        hoverinfo='skip'
                     )
 
                     # Configure stacking and interactivity
                     fig.update_layout(
-                        barmode='stack',
+                        barmode='stack', 
                         xaxis_title="Month (Earliest Priority Date)",
                         yaxis_title="Count of Applications",
-                        legend_title="Type (Click to Toggle)",
+                        legend_title="Application Type (ID)",
                         uniformtext_minsize=8, 
                         uniformtext_mode='hide'
                     )
                     
+                    # Ensure individual segment counts are visible inside the bars
                     fig.update_traces(textposition='inside')
                     
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
-
             with tabs[10]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
                 u_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
