@@ -948,20 +948,6 @@ else:
                     }
                 )
                 
-                # Calculate the totals per month to display on the very top of the stack
-                totals = counts.groupby('Month_Name')['Apps'].sum().reset_index()
-                
-                # Add the total number floating just above each bar
-                for index, row in totals.iterrows():
-                    if row['Apps'] > 0:
-                        fig.add_annotation(
-                            x=row['Month_Name'],
-                            y=row['Apps'],
-                            text=f"<b>{row['Apps']}</b>",
-                            showarrow=False,
-                            yshift=15 # Shifts the total slightly up so it doesn't overlap
-                        )
-                
                 # Enforce the stack look and position the internal text safely
                 fig.update_traces(textposition='inside')
                 fig.update_layout(barmode='stack')
