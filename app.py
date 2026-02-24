@@ -918,56 +918,59 @@ else:
 
             with tabs[9]:
                 # 1. Ensure the counting is strictly based on 'Earliest Priority Date'
-                # Convert to datetime if not already done to extract Year and Month Name
+                # Convert to datetime and extract Year/Month
                 df_f['Earliest Priority Date'] = pd.to_datetime(df_f['Earliest Priority Date'])
                 df_f['EPD_Year'] = df_f['Earliest Priority Date'].dt.year
                 df_f['EPD_Month'] = df_f['Earliest Priority Date'].dt.strftime('%B')
 
-                # Filter selection based on the Year of the Earliest Priority Date
-                available_years = sorted(df_f['EPD_Year'].dropna().unique().astype(int), reverse=True)
-                sel_yr_m = st.selectbox("Choose Year (Priority Date):", available_years, key="m_tab_sel")
+                # FIX FOR KEYERROR: Identify the 'Type' column dynamically (case-insensitive)
+                type_col = next((c for c in df_f.columns if c.strip().lower() == 'type'), None)
                 
-                # Filter data for the selected Priority Year
-                yr_data = df_f[df_f['EPD_Year'] == sel_yr_m].copy()
-                
-                # 2. Define Strict Ordering (Month Calendar & Type 5 at bottom)
-                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                t_order = [5, 4, 3, 2, 1] # Type 5 at the bottom, 1 at the top
-                
-                # Force categorical ordering for the Plotly axis and stacking
-                yr_data['EPD_Month'] = pd.Categorical(yr_data['EPD_Month'], categories=m_order, ordered=True)
-                yr_data['Type'] = pd.Categorical(yr_data['Type'], categories=t_order, ordered=True)
+                if type_col is None:
+                    st.error("Column 'Type' not found in the dataset. Please check your CSV headers.")
+                else:
+                    available_years = sorted(df_f['EPD_Year'].dropna().unique().astype(int), reverse=True)
+                    sel_yr_m = st.selectbox("Choose Year (Priority Date):", available_years, key="m_tab_sel")
+                    
+                    # Filter data for the selected Priority Year
+                    yr_data = df_f[df_f['EPD_Year'] == sel_yr_m].copy()
+                    
+                    # 2. Define Strict Ordering (Month Calendar & Type 5 at bottom)
+                    m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                    t_order = [5, 4, 3, 2, 1] 
+                    
+                    # Force categorical ordering
+                    yr_data['EPD_Month'] = pd.Categorical(yr_data['EPD_Month'], categories=m_order, ordered=True)
+                    yr_data[type_col] = pd.Categorical(yr_data[type_col], categories=t_order, ordered=True)
 
-                # Group by Month (Priority) and Type
-                counts = yr_data.groupby(['EPD_Month', 'Type'], observed=False).size().reset_index(name='Apps')
+                    # Group by Month and the dynamic Type column
+                    counts = yr_data.groupby(['EPD_Month', type_col], observed=False).size().reset_index(name='Apps')
 
-                # Create the stacked bar chart
-                fig = px.bar(
-                    counts, 
-                    x='EPD_Month', 
-                    y='Apps', 
-                    color='Type', 
-                    text='Apps', # Shows count for EACH type segment
-                    height=600,
-                    category_orders={"EPD_Month": m_order, "Type": t_order},
-                    labels={'EPD_Month': 'Month of Priority', 'Apps': 'Number of Apps'}
-                )
+                    # Create the stacked bar chart
+                    fig = px.bar(
+                        counts, 
+                        x='EPD_Month', 
+                        y='Apps', 
+                        color=type_col, 
+                        text='Apps', 
+                        height=600,
+                        category_orders={"EPD_Month": m_order, type_col: t_order},
+                        labels={'EPD_Month': 'Month of Priority', 'Apps': 'Number of Apps'}
+                    )
 
-                # Configure stacking and interactivity
-                fig.update_layout(
-                    barmode='stack', # This stacks the types on top of each other
-                    xaxis_title="Month (Earliest Priority Date)",
-                    yaxis_title="Count of Applications",
-                    legend_title="Type (Click to Toggle)",
-                    # Ensures the total height is visible and labels are clean
-                    uniformtext_minsize=8, 
-                    uniformtext_mode='hide'
-                )
-                
-                # Positioning text inside the segments for individual counts
-                fig.update_traces(textposition='inside')
-                
-                st.plotly_chart(fix_chart(fig), use_container_width=True)
+                    # Configure stacking and interactivity
+                    fig.update_layout(
+                        barmode='stack',
+                        xaxis_title="Month (Earliest Priority Date)",
+                        yaxis_title="Count of Applications",
+                        legend_title="Type (Click to Toggle)",
+                        uniformtext_minsize=8, 
+                        uniformtext_mode='hide'
+                    )
+                    
+                    fig.update_traces(textposition='inside')
+                    
+                    st.plotly_chart(fix_chart(fig), use_container_width=True)
 
             with tabs[10]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
