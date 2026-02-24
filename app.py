@@ -917,77 +917,58 @@ else:
                 else: st.warning("Insufficient data.")
 
             with tabs[9]:
-                # 1. Ensure the counting is strictly based on 'Earliest Priority Date'
-                # Convert to datetime and extract Year/Month
-                df_f['Earliest Priority Date'] = pd.to_datetime(df_f['Earliest Priority Date'])
-                df_f['EPD_Year'] = df_f['Earliest Priority Date'].dt.year
-                df_f['EPD_Month'] = df_f['Earliest Priority Date'].dt.strftime('%B')
-
-                # Define the column name based on your CSV header
-                type_col = 'Application Type (ID)'
+                # 1. Base counting on 'Earliest Priority Date' without permanently altering other tabs
+                df_tab9 = df_f.copy()
+                df_tab9['Earliest Priority Date'] = pd.to_datetime(df_tab9['Earliest Priority Date'], errors='coerce')
+                df_tab9['Year'] = df_tab9['Earliest Priority Date'].dt.year
+                df_tab9['Month_Name'] = df_tab9['Earliest Priority Date'].dt.month_name()
                 
-                # Check if the column exists to avoid further KeyErrors
-                if type_col not in df_f.columns:
-                    st.error(f"Column '{type_col}' not found. Available columns: {list(df_f.columns)}")
-                else:
-                    available_years = sorted(df_f['EPD_Year'].dropna().unique().astype(int), reverse=True)
-                    sel_yr_m = st.selectbox("Choose Year (Priority Date):", available_years, key="m_tab_sel")
-                    
-                    # Filter data for the selected Priority Year
-                    yr_data = df_f[df_f['EPD_Year'] == sel_yr_m].copy()
-                    
-                    # 2. Define Strict Ordering (Month Calendar & Type 5 at bottom)
-                    m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                    # This list defines the stacking order from bottom to top
-                    t_order = [5, 4, 3, 2, 1] 
-                    
-                    # Force categorical ordering for both Month and Type
-                    yr_data['EPD_Month'] = pd.Categorical(yr_data['EPD_Month'], categories=m_order, ordered=True)
-                    yr_data[type_col] = pd.Categorical(yr_data[type_col], categories=t_order, ordered=True)
-
-                    # Group by Month and Type to get individual segment counts
-                    counts = yr_data.groupby(['EPD_Month', type_col], observed=False).size().reset_index(name='Apps')
-
-                    # Create the stacked bar chart
-                    fig = px.bar(
-                        counts, 
-                        x='EPD_Month', 
-                        y='Apps', 
-                        color=type_col, 
-                        text='Apps', # Individual count for each type segment
-                        height=600,
-                        category_orders={"EPD_Month": m_order, type_col: t_order},
-                        color_discrete_sequence=px.colors.qualitative.Plotly # Distinct colors for each type
-                    )
-
-                    # Calculate totals for the top of the bars
-                    totals = counts.groupby('EPD_Month')['Apps'].sum().reset_index()
-                    
-                    # Add total labels at the very top of each stacked bar
-                    fig.add_scatter(
-                        x=totals['EPD_Month'], 
-                        y=totals['Apps'], 
-                        text=totals['Apps'], 
-                        mode='text',
-                        textposition='top center',
-                        showlegend=False,
-                        hoverinfo='skip'
-                    )
-
-                    # Configure stacking and interactivity
-                    fig.update_layout(
-                        barmode='stack', 
-                        xaxis_title="Month (Earliest Priority Date)",
-                        yaxis_title="Count of Applications",
-                        legend_title="Application Type (ID)",
-                        uniformtext_minsize=8, 
-                        uniformtext_mode='hide'
-                    )
-                    
-                    # Ensure individual segment counts are visible inside the bars
-                    fig.update_traces(textposition='inside')
-                    
-                    st.plotly_chart(fix_chart(fig), use_container_width=True)
+                # Selectbox intact, now using the accurately extracted priority year
+                sel_yr_m = st.selectbox("Choose Year:", sorted(df_tab9['Year'].dropna().unique(), reverse=True), key="m_tab_sel")
+                yr_data = df_tab9[df_tab9['Year'] == sel_yr_m]
+                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                
+                # 2. Group by Month and Application Type (ID)
+                counts = yr_data.groupby(['Month_Name', 'Application Type (ID)']).size().reset_index(name='Apps')
+                
+                # Convert ID to string so Plotly creates distinct colors and a toggleable legend
+                counts['Application Type (ID)'] = counts['Application Type (ID)'].astype(str)
+                
+                # Rebuild chart with stacking, counting, and proper ordering
+                fig = px.bar(
+                    counts, 
+                    x='Month_Name', 
+                    y='Apps', 
+                    color='Application Type (ID)', # Gives each type a different color and interactive legend
+                    text='Apps',                   # Puts the count inside each individual block
+                    height=600,
+                    category_orders={
+                        "Month_Name": m_order,
+                        "Application Type (ID)": ["5", "4", "3", "2", "1"] # Renders 5 at the bottom, building upwards
+                    }
+                )
+                
+                # Calculate the totals per month to display on the very top of the stack
+                totals = counts.groupby('Month_Name')['Apps'].sum().reset_index()
+                
+                # Add the total number floating just above each bar
+                for index, row in totals.iterrows():
+                    if row['Apps'] > 0:
+                        fig.add_annotation(
+                            x=row['Month_Name'],
+                            y=row['Apps'],
+                            text=f"<b>{row['Apps']}</b>",
+                            showarrow=False,
+                            yshift=15 # Shifts the total slightly up so it doesn't overlap
+                        )
+                
+                # Enforce the stack look and position the internal text safely
+                fig.update_traces(textposition='inside')
+                fig.update_layout(barmode='stack')
+                
+                # Kept completely intact
+                st.plotly_chart(fix_chart(fig), use_container_width=True)
+                
             with tabs[10]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
                 u_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
