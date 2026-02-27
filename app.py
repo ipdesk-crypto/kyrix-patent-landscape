@@ -660,15 +660,22 @@ else:
 
 # --- TAB 3: FIRM INTELLIGENCE ---
             with tabs[2]:
+                # STRICT ENFORCER: Calculate Year strictly from Earliest Priority Date and force exact integer typing to prevent dropped counts
+                if 'Earliest Priority Date' in df_f.columns:
+                    df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest Priority Date'], errors='coerce').dt.year
+                if 'Earliest Priority Year' in df_f.columns:
+                    df_f['Earliest Priority Year'] = pd.to_numeric(df_f['Earliest Priority Year'], errors='coerce').astype('Int64')
+
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
                 
                 df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
-                all_firms = sorted(df_firms_only['Firm'].unique())
+                all_firms = sorted(df_firms_only['Firm'].dropna().unique())
                 top_firms_list = df_firms_only['Firm'].value_counts().nlargest(10).index.tolist()
-                available_years = sorted(df_firms_only['Earliest Priority Year'].unique(), reverse=True)
+                # Ensure available_years are clean integers
+                available_years = sorted([int(y) for y in df_firms_only['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1, c2 = st.columns([1,1])
                 with c1:
@@ -685,9 +692,11 @@ else:
                     if mode_firm == "Type Specific Years":
                         year_input_firm = st.text_input("Type Years for Firm Analysis:", value=", ".join(map(str, available_years)))
                         selected_years = parse_year_input(year_input_firm, available_years)
+                        # Force selected_years to int for perfect matching
+                        selected_years = [int(y) for y in selected_years if pd.notna(y)]
                     else:
                         min_y, max_y = min(available_years), max(available_years)
-                        s_year, e_year = st.slider("Select Year Range:", min_y, max_y, (min_y, max_y), key="firm_slider")
+                        s_year, e_year = st.slider("Select Year Range:", int(min_y), int(max_y), (int(min_y), int(max_y)), key="firm_slider")
                         selected_years = list(range(s_year, e_year + 1))
                 
                 # Check if selections are valid
@@ -737,10 +746,11 @@ else:
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
                 
                 # Applicants Logic
-                df_applicants = df_f.copy() # Use df_f which is filtered by Type
+                df_applicants = df_f.copy() # Use df_f which is filtered by Type and now has strictly accurate Priority Years
                 all_apps = sorted(df_applicants['Data of Applicant - Legal Name in English'].astype(str).unique())
                 top_apps_list = df_applicants['Data of Applicant - Legal Name in English'].value_counts().nlargest(10).index.tolist()
-                available_years_app = sorted(df_applicants['Earliest Priority Year'].unique(), reverse=True)
+                # Ensure available_years_app are clean integers
+                available_years_app = sorted([int(y) for y in df_applicants['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1_a, c2_a = st.columns([1,1])
                 with c1_a:
@@ -757,9 +767,11 @@ else:
                     if mode_app == "Type Specific Years":
                         year_input_app = st.text_input("Type Years for Applicant Analysis:", value=", ".join(map(str, available_years_app)), key="app_year_input")
                         selected_years_app = parse_year_input(year_input_app, available_years_app)
+                        # Force ints for perfect matching
+                        selected_years_app = [int(y) for y in selected_years_app if pd.notna(y)]
                     else:
                         min_y_a, max_y_a = min(available_years_app), max(available_years_app)
-                        s_year_a, e_year_a = st.slider("Select Year Range:", min_y_a, max_y_a, (min_y_a, max_y_a), key="app_slider")
+                        s_year_a, e_year_a = st.slider("Select Year Range:", int(min_y_a), int(max_y_a), (int(min_y_a), int(max_y_a)), key="app_slider")
                         selected_years_app = list(range(s_year_a, e_year_a + 1))
                 
                 if selected_apps and selected_years_app:
@@ -805,8 +817,9 @@ else:
                 st.markdown("### Firm's Client Intelligence")
                 
                 # Get list of Firms and Years
-                all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].unique())
-                all_years_fc = sorted(df_f['Earliest Priority Year'].unique(), reverse=True)
+                all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].dropna().unique())
+                # Ensure all_years_fc are clean integers
+                all_years_fc = sorted([int(y) for y in df_f['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1_fc, c2_fc = st.columns([1, 1.5])
                 with c1_fc:
@@ -817,9 +830,11 @@ else:
                     if mode_fc == "Type Specific Years":
                         year_input_fc = st.text_input("Type Years for Client Analysis:", value=", ".join(map(str, all_years_fc)), key="fc_year_input")
                         selected_years_fc = parse_year_input(year_input_fc, all_years_fc)
+                        # Force ints for perfect matching
+                        selected_years_fc = [int(y) for y in selected_years_fc if pd.notna(y)]
                     else:
                         min_y_fc, max_y_fc = min(all_years_fc), max(all_years_fc)
-                        s_year_fc, e_year_fc = st.slider("Select Year Range:", min_y_fc, max_y_fc, (min_y_fc, max_y_fc), key="fc_slider")
+                        s_year_fc, e_year_fc = st.slider("Select Year Range:", int(min_y_fc), int(max_y_fc), (int(min_y_fc), int(max_y_fc)), key="fc_slider")
                         selected_years_fc = list(range(s_year_fc, e_year_fc + 1))
                 
                 if target_firm and selected_years_fc:
