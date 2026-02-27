@@ -658,7 +658,7 @@ else:
             elif 'Earliest Priority Year' not in df_f.columns:
                 df_f['Earliest Priority Year'] = df_f['Year'] # Fallback if missing
 
-            # --- TAB 3: FIRM INTELLIGENCE ---
+# --- TAB 3: FIRM INTELLIGENCE ---
             with tabs[2]:
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
@@ -712,7 +712,7 @@ else:
                         else:
                             fig_data = firm_growth
 
-                        fig = px.line(fig_data, x='Earliest Priority Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Filing Date)")
+                        fig = px.line(fig_data, x='Earliest Priority Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Earliest Priority Year)")
                         fig = add_cutoff_lines_numeric_axis(fig, c18, c30)
                         fig = apply_year_axis_formatting(fig)
                         st.plotly_chart(fix_chart(fig), use_container_width=True)
@@ -783,7 +783,7 @@ else:
                         else:
                             fig_data_a = app_growth
 
-                        fig_app = px.line(fig_data_a, x='Earliest Priority Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Filing Date)")
+                        fig_app = px.line(fig_data_a, x='Earliest Priority Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Earliest Priority Year)")
                         fig_app = add_cutoff_lines_numeric_axis(fig_app, c18, c30)
                         fig_app = apply_year_axis_formatting(fig_app)
                         st.plotly_chart(fix_chart(fig_app), use_container_width=True)
@@ -858,7 +858,7 @@ else:
                     firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
                     fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
-
+                    
             with tabs[6]:
                 land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
                 fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
