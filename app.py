@@ -334,6 +334,9 @@ else:
             field_filters = {}
             field_filters['Title in English'] = st.text_input("Search in Title")
             field_filters['Abstract in English'] = st.text_input("Search in Abstract")
+            # --- NEW: KYRIX KEYWORDS PLACEHOLDER ---
+            # Rendered for UI, but kept out of 'field_filters' to prevent KeyError crashes
+            kyrix_keywords_query = st.text_input("Search in Kyrix Keywords (Pending Mechanism)")
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
