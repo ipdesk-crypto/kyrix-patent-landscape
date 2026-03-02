@@ -334,6 +334,9 @@ else:
             field_filters = {}
             field_filters['Title in English'] = st.text_input("Search in Title")
             field_filters['Abstract in English'] = st.text_input("Search in Abstract")
+            # --- NEW: KYRIX KEYWORDS PLACEHOLDER ---
+            # Rendered for UI, but kept out of 'field_filters' to prevent KeyError crashes
+            kyrix_keywords_query = st.text_input("Search in Kyrix Keywords (Pending Mechanism)")
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
@@ -651,17 +654,31 @@ else:
 
                 else: st.warning("No data found for Priority Dates.")
 
-            # --- TAB 3: FIRM INTELLIGENCE ---
+# --- PRE-PROCESSING FOR ALL TABS ---
+            # Extract Earliest Priority Year from the Earliest priority date
+            if 'Earliest priority date' in df_f.columns:
+                df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest priority date'], errors='coerce').dt.year.fillna(0).astype(int)
+            elif 'Earliest Priority Year' not in df_f.columns:
+                df_f['Earliest Priority Year'] = df_f['Year'] # Fallback if missing
+
+# --- TAB 3: FIRM INTELLIGENCE ---
             with tabs[2]:
+                # STRICT ENFORCER: Calculate Year strictly from Earliest Priority Date and force exact integer typing to prevent dropped counts
+                if 'Earliest Priority Date' in df_f.columns:
+                    df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest Priority Date'], errors='coerce').dt.year
+                if 'Earliest Priority Year' in df_f.columns:
+                    df_f['Earliest Priority Year'] = pd.to_numeric(df_f['Earliest Priority Year'], errors='coerce').astype('Int64')
+
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
                 
                 df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
-                all_firms = sorted(df_firms_only['Firm'].unique())
+                all_firms = sorted(df_firms_only['Firm'].dropna().unique())
                 top_firms_list = df_firms_only['Firm'].value_counts().nlargest(10).index.tolist()
-                available_years = sorted(df_firms_only['Year'].unique(), reverse=True)
+                # Ensure available_years are clean integers
+                available_years = sorted([int(y) for y in df_firms_only['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1, c2 = st.columns([1,1])
                 with c1:
@@ -678,24 +695,26 @@ else:
                     if mode_firm == "Type Specific Years":
                         year_input_firm = st.text_input("Type Years for Firm Analysis:", value=", ".join(map(str, available_years)))
                         selected_years = parse_year_input(year_input_firm, available_years)
+                        # Force selected_years to int for perfect matching
+                        selected_years = [int(y) for y in selected_years if pd.notna(y)]
                     else:
                         min_y, max_y = min(available_years), max(available_years)
-                        s_year, e_year = st.slider("Select Year Range:", min_y, max_y, (min_y, max_y), key="firm_slider")
+                        s_year, e_year = st.slider("Select Year Range:", int(min_y), int(max_y), (int(min_y), int(max_y)), key="firm_slider")
                         selected_years = list(range(s_year, e_year + 1))
                 
                 # Check if selections are valid
                 if selected_firms and selected_years:
                     # OPTIMIZATION: If "All Firms" is selected, don't use .isin(all_firms), just filter by year
                     if sel_all_firms:
-                        firm_sub = df_firms_only[df_firms_only['Year'].isin(selected_years)]
+                        firm_sub = df_firms_only[df_firms_only['Earliest Priority Year'].isin(selected_years)]
                     else:
-                        firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Year'].isin(selected_years))]
+                        firm_sub = df_firms_only[(df_firms_only['Firm'].isin(selected_firms)) & (df_firms_only['Earliest Priority Year'].isin(selected_years))]
                     
                     if not firm_sub.empty:
                         st.markdown("### Firm Rank by Application Volume")
                         st.dataframe(firm_sub['Firm'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                         
-                        firm_growth = firm_sub.groupby(['Year', 'Firm']).size().reset_index(name='Apps')
+                        firm_growth = firm_sub.groupby(['Earliest Priority Year', 'Firm']).size().reset_index(name='Apps')
                         
                         # Only show chart if we haven't selected ALL firms (too messy), or limit to top 20
                         if sel_all_firms:
@@ -705,14 +724,14 @@ else:
                         else:
                             fig_data = firm_growth
 
-                        fig = px.line(fig_data, x='Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Filing Date)")
+                        fig = px.line(fig_data, x='Earliest Priority Year', y='Apps', color='Firm', markers=True, height=800, title="Firm Filing Intelligence (Expanded View - Earliest Priority Year)")
                         fig = add_cutoff_lines_numeric_axis(fig, c18, c30)
                         fig = apply_year_axis_formatting(fig)
                         st.plotly_chart(fix_chart(fig), use_container_width=True)
 
                         # NEW: YEARLY SUMMARY OF TABLE FOR FIRM INTELLIGENCE
                         st.subheader("Firm Annual Summary Table")
-                        firm_summary_pivot = firm_growth.pivot(index='Firm', columns='Year', values='Apps').fillna(0).astype(int)
+                        firm_summary_pivot = firm_growth.pivot(index='Firm', columns='Earliest Priority Year', values='Apps').fillna(0).astype(int)
                         firm_summary_pivot['Total'] = firm_summary_pivot.sum(axis=1)
                         # Sort by Total descending
                         firm_summary_pivot = firm_summary_pivot.sort_values(by='Total', ascending=False)
@@ -730,10 +749,11 @@ else:
                             Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
                 
                 # Applicants Logic
-                df_applicants = df_f.copy() # Use df_f which is filtered by Type
+                df_applicants = df_f.copy() # Use df_f which is filtered by Type and now has strictly accurate Priority Years
                 all_apps = sorted(df_applicants['Data of Applicant - Legal Name in English'].astype(str).unique())
                 top_apps_list = df_applicants['Data of Applicant - Legal Name in English'].value_counts().nlargest(10).index.tolist()
-                available_years_app = sorted(df_applicants['Year'].unique(), reverse=True)
+                # Ensure available_years_app are clean integers
+                available_years_app = sorted([int(y) for y in df_applicants['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1_a, c2_a = st.columns([1,1])
                 with c1_a:
@@ -750,23 +770,25 @@ else:
                     if mode_app == "Type Specific Years":
                         year_input_app = st.text_input("Type Years for Applicant Analysis:", value=", ".join(map(str, available_years_app)), key="app_year_input")
                         selected_years_app = parse_year_input(year_input_app, available_years_app)
+                        # Force ints for perfect matching
+                        selected_years_app = [int(y) for y in selected_years_app if pd.notna(y)]
                     else:
                         min_y_a, max_y_a = min(available_years_app), max(available_years_app)
-                        s_year_a, e_year_a = st.slider("Select Year Range:", min_y_a, max_y_a, (min_y_a, max_y_a), key="app_slider")
+                        s_year_a, e_year_a = st.slider("Select Year Range:", int(min_y_a), int(max_y_a), (int(min_y_a), int(max_y_a)), key="app_slider")
                         selected_years_app = list(range(s_year_a, e_year_a + 1))
                 
                 if selected_apps and selected_years_app:
                     # OPTIMIZATION: If "All" checked, skip .isin check
                     if sel_all_apps:
-                        app_sub = df_applicants[df_applicants['Year'].isin(selected_years_app)]
+                        app_sub = df_applicants[df_applicants['Earliest Priority Year'].isin(selected_years_app)]
                     else:
-                        app_sub = df_applicants[(df_applicants['Data of Applicant - Legal Name in English'].isin(selected_apps)) & (df_applicants['Year'].isin(selected_years_app))]
+                        app_sub = df_applicants[(df_applicants['Data of Applicant - Legal Name in English'].isin(selected_apps)) & (df_applicants['Earliest Priority Year'].isin(selected_years_app))]
                     
                     if not app_sub.empty:
                         st.markdown("### Applicant Rank by Application Volume")
                         st.dataframe(app_sub['Data of Applicant - Legal Name in English'].value_counts().reset_index().rename(columns={'count':'Total Apps'}), use_container_width=True, hide_index=True)
                         
-                        app_growth = app_sub.groupby(['Year', 'Data of Applicant - Legal Name in English']).size().reset_index(name='Apps')
+                        app_growth = app_sub.groupby(['Earliest Priority Year', 'Data of Applicant - Legal Name in English']).size().reset_index(name='Apps')
                         
                         # Only show chart if we haven't selected ALL (too messy), or limit to top 20
                         if sel_all_apps:
@@ -776,14 +798,14 @@ else:
                         else:
                             fig_data_a = app_growth
 
-                        fig_app = px.line(fig_data_a, x='Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Filing Date)")
+                        fig_app = px.line(fig_data_a, x='Earliest Priority Year', y='Apps', color='Data of Applicant - Legal Name in English', markers=True, height=800, title="Applicant Filing Intelligence (Expanded View - Earliest Priority Year)")
                         fig_app = add_cutoff_lines_numeric_axis(fig_app, c18, c30)
                         fig_app = apply_year_axis_formatting(fig_app)
                         st.plotly_chart(fix_chart(fig_app), use_container_width=True)
 
                         # APPLICANT SUMMARY TABLE
                         st.subheader("Applicant Annual Summary Table")
-                        app_summary_pivot = app_growth.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
+                        app_summary_pivot = app_growth.pivot(index='Data of Applicant - Legal Name in English', columns='Earliest Priority Year', values='Apps').fillna(0).astype(int)
                         app_summary_pivot['Total'] = app_summary_pivot.sum(axis=1)
                         # Sort by Total descending
                         app_summary_pivot = app_summary_pivot.sort_values(by='Total', ascending=False)
@@ -798,8 +820,9 @@ else:
                 st.markdown("### Firm's Client Intelligence")
                 
                 # Get list of Firms and Years
-                all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].unique())
-                all_years_fc = sorted(df_f['Year'].unique(), reverse=True)
+                all_firms_client = sorted(df_f[df_f['Firm'] != "DIRECT FILING"]['Firm'].dropna().unique())
+                # Ensure all_years_fc are clean integers
+                all_years_fc = sorted([int(y) for y in df_f['Earliest Priority Year'].dropna().unique()], reverse=True)
                 
                 c1_fc, c2_fc = st.columns([1, 1.5])
                 with c1_fc:
@@ -810,14 +833,16 @@ else:
                     if mode_fc == "Type Specific Years":
                         year_input_fc = st.text_input("Type Years for Client Analysis:", value=", ".join(map(str, all_years_fc)), key="fc_year_input")
                         selected_years_fc = parse_year_input(year_input_fc, all_years_fc)
+                        # Force ints for perfect matching
+                        selected_years_fc = [int(y) for y in selected_years_fc if pd.notna(y)]
                     else:
                         min_y_fc, max_y_fc = min(all_years_fc), max(all_years_fc)
-                        s_year_fc, e_year_fc = st.slider("Select Year Range:", min_y_fc, max_y_fc, (min_y_fc, max_y_fc), key="fc_slider")
+                        s_year_fc, e_year_fc = st.slider("Select Year Range:", int(min_y_fc), int(max_y_fc), (int(min_y_fc), int(max_y_fc)), key="fc_slider")
                         selected_years_fc = list(range(s_year_fc, e_year_fc + 1))
                 
                 if target_firm and selected_years_fc:
                     # Filter data for this firm AND selected years
-                    client_data = df_f[(df_f['Firm'] == target_firm) & (df_f['Year'].isin(selected_years_fc))]
+                    client_data = df_f[(df_f['Firm'] == target_firm) & (df_f['Earliest Priority Year'].isin(selected_years_fc))]
                     
                     if not client_data.empty:
                         st.markdown(f"#### Client Portfolio for: <span style='color:#F59E0B'>{target_firm}</span>", unsafe_allow_html=True)
@@ -836,8 +861,8 @@ else:
                         with col_det:
                             st.markdown("**Client Filing History (Annual Breakdown)**")
                             # Detailed pivot
-                            client_pivot = client_data.groupby(['Data of Applicant - Legal Name in English', 'Year']).size().reset_index(name='Apps')
-                            client_pivot_table = client_pivot.pivot(index='Data of Applicant - Legal Name in English', columns='Year', values='Apps').fillna(0).astype(int)
+                            client_pivot = client_data.groupby(['Data of Applicant - Legal Name in English', 'Earliest Priority Year']).size().reset_index(name='Apps')
+                            client_pivot_table = client_pivot.pivot(index='Data of Applicant - Legal Name in English', columns='Earliest Priority Year', values='Apps').fillna(0).astype(int)
                             client_pivot_table['Total'] = client_pivot_table.sum(axis=1)
                             client_pivot_table = client_pivot_table.sort_values(by='Total', ascending=False)
                              # ADD RANK COLUMN
@@ -845,14 +870,13 @@ else:
                             st.dataframe(client_pivot_table, use_container_width=True)
                     else:
                         st.warning(f"No data found for {target_firm} in the selected years.")
-
             with tabs[5]:
                 df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
                 if 'selected_firms' in locals() and selected_firms:
                     firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
                     fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
-
+                    
             with tabs[6]:
                 land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
                 fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
