@@ -941,43 +941,79 @@ else:
                 else: st.warning("Insufficient data.")
 
             with tabs[9]:
-                # 1. Base counting on 'Earliest Priority Date' without permanently altering other tabs
-                df_tab9 = df_f.copy()
-                df_tab9['Earliest Priority Date'] = pd.to_datetime(df_tab9['Earliest Priority Date'], errors='coerce')
-                df_tab9['Year'] = df_tab9['Earliest Priority Date'].dt.year
-                df_tab9['Month_Name'] = df_tab9['Earliest Priority Date'].dt.month_name()
-                
-                # Selectbox intact, now using the accurately extracted priority year
-                sel_yr_m = st.selectbox("Choose Year:", sorted(df_tab9['Year'].dropna().unique(), reverse=True), key="m_tab_sel")
-                yr_data = df_tab9[df_tab9['Year'] == sel_yr_m]
-                m_order = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-                
-                # 2. Group by Month and Application Type (ID)
-                counts = yr_data.groupby(['Month_Name', 'Application Type (ID)']).size().reset_index(name='Apps')
-                
-                # Convert ID to string so Plotly creates distinct colors and a toggleable legend
-                counts['Application Type (ID)'] = counts['Application Type (ID)'].astype(str)
-                
-                # Rebuild chart with stacking, counting, and proper ordering
-                fig = px.bar(
-                    counts, 
-                    x='Month_Name', 
-                    y='Apps', 
-                    color='Application Type (ID)', # Gives each type a different color and interactive legend
-                    text='Apps',                   # Puts the count inside each individual block
-                    height=600,
-                    category_orders={
-                        "Month_Name": m_order,
-                        "Application Type (ID)": ["5", "4", "3", "2", "1"] # Renders 5 at the bottom, building upwards
-                    }
-                )
-                
-                # Enforce the stack look and position the internal text safely
-                fig.update_traces(textposition='inside')
-                fig.update_layout(barmode='stack')
-                
-                # Kept completely intact
-                st.plotly_chart(fix_chart(fig), use_container_width=True)
+                    # 1. Base counting on 'Earliest Priority Date' without permanently altering other tabs
+                    df_tab9 = df_f.copy()
+                    df_tab9['Earliest Priority Date'] = pd.to_datetime(df_tab9['Earliest Priority Date'], errors='coerce')
+                    df_tab9['Year'] = df_tab9['Earliest Priority Date'].dt.year
+                    df_tab9['Month_Name'] = df_tab9['Earliest Priority Date'].dt.month_name()
+                    df_tab9['Month_Year'] = df_tab9['Earliest Priority Date'].dt.strftime('%B %Y') # Added to keep years distinct on x-axis
+                    
+                    # REPORT BOX TOP
+                    c18, c30 = get_cutoff_dates()
+                    st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
+                                Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
+                    
+                    df_firms_only = df_f[df_f['Firm'] != "DIRECT FILING"]
+                    all_firms = sorted(df_firms_only['Firm'].unique())
+                    top_firms_list = df_firms_only['Firm'].value_counts().nlargest(10).index.tolist()
+                    available_years = sorted(df_tab9['Year'].dropna().unique(), reverse=True)
+                    
+                    # Multiselect allowing multiple years, defaulting to the most recent year
+                    default_yr = [available_years[0]] if available_years else []
+                    sel_yr_m = st.multiselect("Choose Year(s):", available_years, default=default_yr, key="m_tab_sel")
+                    
+                    # Filter using isin() to support multiple selected years
+                    yr_data = df_tab9[df_tab9['Year'].isin(sel_yr_m)]
+                    
+                    # --- DE-DUPLICATION ADDED HERE ---
+                    # Ensure each application is counted only once based on 'Application Number'
+                    yr_data = yr_data.drop_duplicates(subset=['Application Number'])
+                    
+                    # Generate x-axis order dynamically for all selected years to expand columns
+                    base_months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+                    m_order = []
+                    for y in sorted(sel_yr_m): # Sorts ascending so older years are on the left
+                        for m in base_months:
+                            m_order.append(f"{m} {int(y)}")
+                    
+                    # 2. Group by Month_Year and Application Type (ID)
+                    counts = yr_data.groupby(['Month_Year', 'Application Type (ID)']).size().reset_index(name='Apps')
+                    
+                    # Convert ID to string so Plotly creates distinct colors and a toggleable legend
+                    counts['Application Type (ID)'] = counts['Application Type (ID)'].astype(str)
+                    
+                    # Rebuild chart with stacking, counting, and proper ordering
+                    fig = px.bar(
+                        counts, 
+                        x='Month_Year', 
+                        y='Apps', 
+                        color='Application Type (ID)', # Gives each type a different color and interactive legend
+                        text='Apps',                   # Puts the count inside each individual block
+                        height=600,
+                        category_orders={
+                            "Month_Year": m_order,
+                            "Application Type (ID)": ["5", "4", "3", "2", "1"] # Renders 5 at the bottom, building upwards
+                        }
+                    )
+                    
+                    # Enforce the stack look and position the internal text safely
+                    fig.update_traces(textposition='inside')
+                    fig.update_layout(barmode='stack')
+                    
+                    # Extract the Month Year from the present dynamic cutoff dates
+                    c18_month_year = c18.strftime('%B %Y')
+                    c30_month_year = c30.strftime('%B %Y')
+                    
+                    # Add vertical cutoff lines based on the calculated current Month Year
+                    fig.add_vline(x=c18_month_year, line_width=2, line_dash="dash", line_color="red")
+                    fig.add_vline(x=c30_month_year, line_width=2, line_dash="dash", line_color="blue")
+                    
+                    # Add dummy traces so the vertical lines register appropriately in the side legend
+                    fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='red', width=2, dash='dash'), name='18M Cutoff')
+                    fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='blue', width=2, dash='dash'), name='30M Cutoff')
+                    
+                    # Kept completely intact
+                    st.plotly_chart(fix_chart(fig), use_container_width=True)
                 
             with tabs[10]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
