@@ -1015,7 +1015,7 @@ else:
                     # Kept completely intact
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-            # --- TAB 10: GROWTH OF APPLICANTS ---
+                # --- TAB 10: GROWTH OF APPLICANTS ---
             with tabs[10]:
                 st.markdown("### GROWTH OF APPLICANTS")
                 
@@ -1027,20 +1027,54 @@ else:
                 df_tab10['Month_Year'] = df_tab10['Earliest Priority Date'].dt.strftime('%B %Y')
                 
                 # --- AGGRESSIVE APPLICANT CLEANING TO GROUP SAME COMPANIES ---
+                import difflib # Imported to dynamically calculate string similarity for typos across ALL companies
+                
                 # 1. Uppercase everything so letters match exactly
                 cleaned_names = df_tab10['Data of Applicant - Legal Name in English'].astype(str).str.upper()
                 
-                # 2. Remove ALL punctuation (periods, commas, hyphens, slashes, etc.) so "COMPANY." matches "COMPANY"
+                # 2. Remove ALL punctuation (periods, commas, hyphens, slashes, etc.)
                 cleaned_names = cleaned_names.str.replace(r'[^\w\s]', '', regex=True)
                 
-                # 3. Remove common corporate suffixes so "COMPANY INC" matches "COMPANY"
-                cleaned_names = cleaned_names.str.replace(r'\b(INC|LLC|LTD|CORP|CORPORATION|CO|COMPANY|LIMITED|GMBH|SA|NV|PLC)\b', '', regex=True)
+                # 3. Remove common corporate suffixes
+                cleaned_names = cleaned_names.str.replace(r'\b(INC|LLC|LTD|CORP|CORPORATION|CO|COMPANY|LIMITED|GMBH|SA|NV|PLC|BV)\b', '', regex=True)
                 
-                # 4. Remove ALL extra spaces, collapsing them to a single space, and trim edges so "COM  PANY" and "COMPANY " are handled perfectly
-                df_tab10['Cleaned Applicant'] = cleaned_names.str.replace(r'\s+', ' ', regex=True).str.strip()
+                # 4. Collapse extra spaces into a single space and trim edges
+                cleaned_names = cleaned_names.str.replace(r'\s+', ' ', regex=True).str.strip()
                 
-                # Create dropdown list from the grouped/cleaned names (removing empty strings)
-                all_apps = sorted(df_tab10[df_tab10['Cleaned Applicant'] != '']['Cleaned Applicant'].unique())
+                # --- 5. DYNAMIC ALIAS MAPPING FOR ALL COMPANIES ---
+                # Get unique cleaned names, removing empty strings
+                unique_clean_names = cleaned_names[cleaned_names != ''].dropna().unique()
+                
+                # Sort by length (shortest first) so the core base name becomes the standard (e.g., "HALLIBURTON" before "HALLIBURTON ENERGY")
+                unique_clean_names = sorted(unique_clean_names, key=len)
+                
+                name_mapping = {}
+                standard_names = []
+                
+                for name in unique_clean_names:
+                    match_found = False
+                    for std in standard_names:
+                        # Condition A: High text similarity (catches typos like MATTSCHAPPIJ vs MAATSCHAPPIJ)
+                        similarity = difflib.SequenceMatcher(None, std, name).ratio()
+                        
+                        # Condition B: Base name is included in the longer name (catches extra departments/partners like "... BREMBANA")
+                        # We ensure the standard name is at least 8 characters so tiny words don't accidentally swallow unrelated companies.
+                        is_prefix = len(std) >= 8 and name.startswith(std)
+                        
+                        if similarity > 0.85 or is_prefix:
+                            name_mapping[name] = std
+                            match_found = True
+                            break
+                    
+                    if not match_found:
+                        standard_names.append(name)
+                        name_mapping[name] = name
+                
+                # Apply the dynamic mapping to the dataframe
+                df_tab10['Cleaned Applicant'] = cleaned_names.map(name_mapping)
+                
+                # Create dropdown list from the automatically grouped names
+                all_apps = sorted(df_tab10[df_tab10['Cleaned Applicant'].notna() & (df_tab10['Cleaned Applicant'] != '')]['Cleaned Applicant'].unique())
                 
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
@@ -1061,7 +1095,7 @@ else:
                     sel_yr_10 = st.multiselect("Choose Year(s):", available_years_10, default=default_yr_10, key="tab10_yr_selector")
     
                 if selected_app and sel_yr_10:
-                    # Filter strictly using the new merged 'Cleaned Applicant' column and chosen year(s)
+                    # Filter strictly using the newly merged 'Cleaned Applicant' column and chosen year(s)
                     app_mask = df_tab10['Cleaned Applicant'] == selected_app
                     year_mask = df_tab10['Year'].isin(sel_yr_10)
                     
