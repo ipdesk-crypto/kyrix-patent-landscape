@@ -8,6 +8,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import hmac
+import gc
 
 
 # --- 1. PAGE CONFIG & KYRIX LUXURY THEME ---
@@ -287,7 +288,8 @@ def load_and_preprocess_all():
             df_exp = df_exp[~df_exp['IPC_Clean'].str.contains("NO CLASSIFICATION|NAN|NONE|-", na=False)]
             df_exp['IPC_Class3'] = df_exp['IPC_Clean'].str[:3] 
             df_exp['IPC_Section'] = df_exp['IPC_Clean'].str[:1]
-            
+    
+            gc.collect()
             return df_search, col_map, df_analysis, df_exp
         else:
             return df_search, col_map, pd.DataFrame(), pd.DataFrame()
