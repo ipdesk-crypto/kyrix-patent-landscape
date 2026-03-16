@@ -962,6 +962,16 @@ else:
                     default_yr = [available_years[0]] if available_years else []
                     sel_yr_m = st.multiselect("Choose Year(s):", available_years, default=default_yr, key="m_tab_sel")
                     
+                    # --- NEW ADDITION: Moving Average UI & Toggle ---
+                    st.markdown("<br><h5 style='color:#3B82F6;'>📈 Moving Average View</h5>", unsafe_allow_html=True)
+                    show_ma = st.toggle("Turn ON Moving Average (Hides Histogram)", key="ma_toggle")
+                    
+                    if show_ma:
+                        # Options directly below the toggle to select specific types to combine
+                        ma_options = ["1", "4", "5"]
+                        sel_ma = st.multiselect("Select Application Types to Add Together:", ma_options, default=["1", "4", "5"], key="ma_tab_sel")
+                    # ------------------------------------------------
+
                     # Filter using isin() to support multiple selected years
                     yr_data = df_tab9[df_tab9['Year'].isin(sel_yr_m)]
                     
@@ -982,36 +992,98 @@ else:
                     # Convert ID to string so Plotly creates distinct colors and a toggleable legend
                     counts['Application Type (ID)'] = counts['Application Type (ID)'].astype(str)
                     
-                    # Rebuild chart with stacking, counting, and proper ordering
-                    fig = px.bar(
-                        counts, 
-                        x='Month_Year', 
-                        y='Apps', 
-                        color='Application Type (ID)', # Gives each type a different color and interactive legend
-                        text='Apps',                   # Puts the count inside each individual block
-                        height=600,
-                        category_orders={
-                            "Month_Year": m_order,
-                            "Application Type (ID)": ["5", "4", "3", "2", "1"] # Renders 5 at the bottom, building upwards
-                        }
-                    )
                     
-                    # Enforce the stack look and position the internal text safely
-                    fig.update_traces(textposition='inside')
-                    fig.update_layout(barmode='stack')
+                    # --- CONDITIONAL RENDERING ---
+                    if not show_ma:
+                        # Rebuild chart with stacking, counting, and proper ordering (ORIGINAL CODE)
+                        fig = px.bar(
+                            counts, 
+                            x='Month_Year', 
+                            y='Apps', 
+                            color='Application Type (ID)', # Gives each type a different color and interactive legend
+                            text='Apps',                   # Puts the count inside each individual block
+                            height=600,
+                            category_orders={
+                                "Month_Year": m_order,
+                                "Application Type (ID)": ["5", "4", "3", "2", "1"] # Renders 5 at the bottom, building upwards
+                            }
+                        )
+                        
+                        # Enforce the stack look and position the internal text safely
+                        fig.update_traces(textposition='inside')
+                        fig.update_layout(barmode='stack')
+                        
+                        # Extract the Month Year from the present dynamic cutoff dates
+                        c18_month_year = c18.strftime('%B %Y')
+                        c30_month_year = c30.strftime('%B %Y')
+                        
+                        # Add vertical cutoff lines based on the calculated current Month Year
+                        fig.add_vline(x=c18_month_year, line_width=2, line_dash="dash", line_color="red")
+                        fig.add_vline(x=c30_month_year, line_width=2, line_dash="dash", line_color="blue")
+                        
+                        # Add dummy traces so the vertical lines register appropriately in the side legend
+                        fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='red', width=2, dash='dash'), name='18M Cutoff')
+                        fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='blue', width=2, dash='dash'), name='30M Cutoff')
                     
-                    # Extract the Month Year from the present dynamic cutoff dates
-                    c18_month_year = c18.strftime('%B %Y')
-                    c30_month_year = c30.strftime('%B %Y')
-                    
-                    # Add vertical cutoff lines based on the calculated current Month Year
-                    fig.add_vline(x=c18_month_year, line_width=2, line_dash="dash", line_color="red")
-                    fig.add_vline(x=c30_month_year, line_width=2, line_dash="dash", line_color="blue")
-                    
-                    # Add dummy traces so the vertical lines register appropriately in the side legend
-                    fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='red', width=2, dash='dash'), name='18M Cutoff')
-                    fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='blue', width=2, dash='dash'), name='30M Cutoff')
-                    
+                    else:
+                        # --- NEW ADDITION: Moving Average Plotting Logic ---
+                        # Create a base dataframe of all months in order to ensure smooth continuous lines without timeline gaps
+                        df_months = pd.DataFrame({"Month_Year": m_order})
+                        
+                        if sel_ma:
+                            # Filter counts for the specific application types chosen
+                            type_data = counts[counts['Application Type (ID)'].isin(sel_ma)]
+                            
+                            # CORRECT COMPUTATION: Sum the apps for the chosen types per month FIRST
+                            combined_data = type_data.groupby('Month_Year')['Apps'].sum().reset_index()
+                        else:
+                            combined_data = pd.DataFrame(columns=['Month_Year', 'Apps'])
+                        
+                        # Merge with full timeline to fill any missing months with 0
+                        merged_data = pd.merge(df_months, combined_data, on="Month_Year", how="left").fillna({"Apps": 0})
+                        
+                        # Calculate 12-month moving average (totalled and divided by 12)
+                        merged_data['Moving_Avg'] = merged_data['Apps'].rolling(window=12, min_periods=1).mean()
+                        
+                        # Build the beautiful smooth curve figure
+                        fig = px.line(
+                            merged_data, 
+                            x='Month_Year', 
+                            y='Moving_Avg', 
+                            height=600,
+                            category_orders={"Month_Year": m_order}
+                        )
+                        
+                        # Make it beautiful with a filled area under the curve
+                        fig.update_traces(
+                            mode='lines', 
+                            line_shape='spline', # Makes it a smooth curve
+                            line=dict(width=5, color='#8B5CF6'), # Beautiful Purple line
+                            fill='tozeroy', # Adds a beautiful shaded area under the curve
+                            fillcolor='rgba(139, 92, 246, 0.2)',
+                            name='12M Moving Average'
+                        )
+                        
+                        fig.update_layout(
+                            title=f"<b>Combined 12-Month Moving Average</b> (Included Types: {', '.join(sel_ma) if sel_ma else 'None'})",
+                            yaxis_title="Average Applications",
+                            xaxis_title="Timeline",
+                            showlegend=True
+                        )
+                        
+                        # Extract the Month Year from the present dynamic cutoff dates (kept intact for MA chart too)
+                        c18_month_year = c18.strftime('%B %Y')
+                        c30_month_year = c30.strftime('%B %Y')
+                        
+                        # Add vertical cutoff lines based on the calculated current Month Year
+                        fig.add_vline(x=c18_month_year, line_width=2, line_dash="dash", line_color="red")
+                        fig.add_vline(x=c30_month_year, line_width=2, line_dash="dash", line_color="blue")
+                        
+                        # Add dummy traces so the vertical lines register appropriately in the side legend
+                        fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='red', width=2, dash='dash'), name='18M Cutoff')
+                        fig.add_scatter(x=[None], y=[None], mode='lines', line=dict(color='blue', width=2, dash='dash'), name='30M Cutoff')
+                        # ---------------------------------------------------
+
                     # Kept completely intact
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
 
