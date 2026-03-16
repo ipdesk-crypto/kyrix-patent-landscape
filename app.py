@@ -210,7 +210,7 @@ def boolean_search(df, query):
     combined_series = df.astype(str).apply(lambda x: ' '.join(x), axis=1)
     return combined_series.apply(check_row)
 
-@st.cache_data
+@st.cache_data(ttl=600, max_entries=1)
 def load_and_preprocess_all():
     path = "2026 - 01- 23_ Data Structure for Patent Search and Analysis Engine - Type 5.csv"
     if not os.path.exists(path) or os.stat(path).st_size == 0: 
