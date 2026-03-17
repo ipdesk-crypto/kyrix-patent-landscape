@@ -360,81 +360,81 @@ else:
         if st.button("RESET SYSTEM"): st.rerun()
 
     # --- 5. MODE: SEARCH ENGINE ---
-    # --- 5. MODE: SEARCH ENGINE ---
 
+    # --- 5. MODE: SEARCH ENGINE ---
     if app_mode == "Intelligence Search":
-            # --- ADDED: KYRIX KEYWORDS DICTIONARY ---
-            kyrix_bins = {
-                "All": [],
-                "Bin # 1: Oil Companies in UAE": ["Abu Dhabi National Oil Company", "ADNOC", "Takreer", "Baker Hughes", "Bharat Petroleum", "BP", "Chevron", "ENI", "ExxonMobil", "Halliburton", "Hindustan Petroleum", "IFP Energies Nouvelles", "Indian Oil", "Institut Francais du Petrole", "M-I L.L.C.", "National Oilwell Varco", "PetroChina", "Petroliam Nasional Berhad", "Petronas", "Saudi Arabian Oil Company", "Saudi Aramco", "Schlumberger", "Shell", "Statoil", "TotalEnergies", "Total SA", "Total Marketing", "Total Raffinage", "Vallourec", "Weatherford", "Welltec"],
-                "Bin #2 Fintech": ["Mastercard", "Samsung Pay", "AEP Ticketing", "Securrency", "Trading Technologies", "Shinhan Card", "CompoSecure"],
-                "Bin #3 Food and Beverage": ["Nestec", "Nestlé", "PepsiCo", "Arla Foods", "Unilever", "Suntory", "Nissin Foods", "Mushlabs", "Avant Meats", "QBO Coffee", "K-Fee", "Inleit", "Sahyadri Farms", "Future Meat", "Melitta"],
-                "Bin #4 Blockchain": ["nChain", "Bitmain", "GCrypt", "Digital Currency Institute", "Tsinghua"],
-                "Bin # 5 Entertainment": ["Universal City Studios", "Sphere Entertainment", "Bungie", "Tata Play", "PCCW Vuclip", "Home Run Dugout", "Kelly Slater Wave", "Dolby"],
-                "Bin # 6 Pharmaceuticals & Healthcare": ["Novartis", "AstraZeneca", "Pfizer", "Johnson & Johnson", "Janssen", "Sanofi", "GlaxoSmithKline", "Merck Sharp & Dohme", "Eli Lilly", "Boehringer Ingelheim", "Amgen", "Bayer", "Gilead Sciences", "Bristol-Myers Squibb", "Biogen", "Regeneron", "Gulf Pharmaceutical", "Julfar"],
-                "Bin # 7 Industrial, Energy & Engineering": ["Halliburton", "Schlumberger", "Baker Hughes", "Shell", "Total Energies", "Siemens", "General Electric", "Abu Dhabi National Oil Company", "ADNOC", "Saudi Arabian Oil Company", "Aramco", "Honeywell", "Linde", "Dubai Electricity & Water Authority", "DEWA", "Thyssenkrupp", "Alstom"],
-                "Bin # 8 Technology, Communications & Research": ["Qualcomm", "Intel", "Samsung Electronics", "Huawei", "Telefonaktiebolaget", "Ericsson", "LG Electronics", "Apple", "Khalifa University", "Technology Innovation Institute", "TII", "United Arab Emirates University", "New York University", "Massachusetts Institute of Technology", "MIT"]
-            }
-            selected_kyrix_bin = st.selectbox("KYRIX KEYWORDS SEARCH", list(kyrix_bins.keys()))
-            # ----------------------------------------
-    
-            if df_search is not None and not df_search.empty:
-                mask = boolean_search(df_search, global_query)
-                
-                # --- ADDED: APPLY KYRIX FILTER TO MASK ---
-                if selected_kyrix_bin != "All" and kyrix_bins[selected_kyrix_bin]:
-                    import re
-                    pattern = '|'.join([re.escape(c) for c in kyrix_bins[selected_kyrix_bin]])
-                    mask &= df_search['Data of Applicant - Legal Name in English'].astype(str).str.contains(pattern, case=False, na=False)
-                # -----------------------------------------
-    
-                for field, f_query in field_filters.items():
-                    if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
-                res = df_search[mask]
-                
-                res_unique = res.copy()
-                
-                st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
-                tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
-                with tab_list:
-                    if res_unique.empty: st.info("No records match your query.")
-                    else:
-                        for idx, row in res_unique.head(50).iterrows():
-                            st.markdown(f"""
-                            <div class="patent-card">
-                                <div class="patent-title">{row['Title in English']}</div>
-                                <div class="patent-meta">
-                                    <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
-                                    <b>App No:</b> {row['Application Number']} | 
-                                    <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
-                                    <b>Earliest Priority Date:</b> {row['Earliest Priority Date']}
-                                </div>
-                                <div class="patent-snippet">{row['Abstract in English']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                with tab_grid: st.dataframe(res_unique, use_container_width=True, hide_index=True)
-                with tab_dossier:
-                    if res_unique.empty: st.info("No records.")
-                    else:
-                        res_unique = res_unique.copy()
-                        res_unique['Display_Label'] = res_unique.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
-                        choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res_unique['Display_Label'].unique())
-                        choice_number = choice_label.split(" | ")[0]
-                        # Select from the unique result set
-                        row = res_unique[res_unique['Application Number'] == choice_number].iloc[0]
-                        st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
-                        st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
-                        e_cols = [c for c, t in col_map.items() if t == "Enriched"]
-                        ec = st.columns(3)
-                        for i, c in enumerate(e_cols):
-                            with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:4px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
-                        st.markdown('<div class="section-header raw-banner">Raw Source Data</div>', unsafe_allow_html=True)
-                        r_cols = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English", "Application Type (ID)"]]
-                        rc = st.columns(3)
-                        for i, c in enumerate(r_cols):
-                            with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
-                        st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
-                        st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
+        # --- ADDED: KYRIX KEYWORDS DICTIONARY ---
+        kyrix_bins = {
+            "All": [],
+            "Bin # 1: Oil Companies in UAE": ["Abu Dhabi National Oil Company", "ADNOC", "Takreer", "Baker Hughes", "Bharat Petroleum", "BP", "Chevron", "ENI", "ExxonMobil", "Halliburton", "Hindustan Petroleum", "IFP Energies Nouvelles", "Indian Oil", "Institut Francais du Petrole", "M-I L.L.C.", "National Oilwell Varco", "PetroChina", "Petroliam Nasional Berhad", "Petronas", "Saudi Arabian Oil Company", "Saudi Aramco", "Schlumberger", "Shell", "Statoil", "TotalEnergies", "Total SA", "Total Marketing", "Total Raffinage", "Vallourec", "Weatherford", "Welltec"],
+            "Bin #2 Fintech": ["Mastercard", "Samsung Pay", "AEP Ticketing", "Securrency", "Trading Technologies", "Shinhan Card", "CompoSecure"],
+            "Bin #3 Food and Beverage": ["Nestec", "Nestlé", "PepsiCo", "Arla Foods", "Unilever", "Suntory", "Nissin Foods", "Mushlabs", "Avant Meats", "QBO Coffee", "K-Fee", "Inleit", "Sahyadri Farms", "Future Meat", "Melitta"],
+            "Bin #4 Blockchain": ["nChain", "Bitmain", "GCrypt", "Digital Currency Institute", "Tsinghua"],
+            "Bin # 5 Entertainment": ["Universal City Studios", "Sphere Entertainment", "Bungie", "Tata Play", "PCCW Vuclip", "Home Run Dugout", "Kelly Slater Wave", "Dolby"],
+            "Bin # 6 Pharmaceuticals & Healthcare": ["Novartis", "AstraZeneca", "Pfizer", "Johnson & Johnson", "Janssen", "Sanofi", "GlaxoSmithKline", "Merck Sharp & Dohme", "Eli Lilly", "Boehringer Ingelheim", "Amgen", "Bayer", "Gilead Sciences", "Bristol-Myers Squibb", "Biogen", "Regeneron", "Gulf Pharmaceutical", "Julfar"],
+            "Bin # 7 Industrial, Energy & Engineering": ["Halliburton", "Schlumberger", "Baker Hughes", "Shell", "Total Energies", "Siemens", "General Electric", "Abu Dhabi National Oil Company", "ADNOC", "Saudi Arabian Oil Company", "Aramco", "Honeywell", "Linde", "Dubai Electricity & Water Authority", "DEWA", "Thyssenkrupp", "Alstom"],
+            "Bin # 8 Technology, Communications & Research": ["Qualcomm", "Intel", "Samsung Electronics", "Huawei", "Telefonaktiebolaget", "Ericsson", "LG Electronics", "Apple", "Khalifa University", "Technology Innovation Institute", "TII", "United Arab Emirates University", "New York University", "Massachusetts Institute of Technology", "MIT"]
+        }
+        selected_kyrix_bin = st.selectbox("KYRIX KEYWORDS SEARCH", list(kyrix_bins.keys()))
+        # ----------------------------------------
+
+        if df_search is not None and not df_search.empty:
+            mask = boolean_search(df_search, global_query)
+            
+            # --- ADDED: APPLY KYRIX FILTER TO MASK ---
+            if selected_kyrix_bin != "All" and kyrix_bins[selected_kyrix_bin]:
+                import re
+                pattern = '|'.join([re.escape(c) for c in kyrix_bins[selected_kyrix_bin]])
+                mask &= df_search['Data of Applicant - Legal Name in English'].astype(str).str.contains(pattern, case=False, na=False)
+            # -----------------------------------------
+
+            for field, f_query in field_filters.items():
+                if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
+            res = df_search[mask]
+            
+            res_unique = res.copy()
+            
+            st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
+            tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
+            with tab_list:
+                if res_unique.empty: st.info("No records match your query.")
+                else:
+                    for idx, row in res_unique.head(50).iterrows():
+                        st.markdown(f"""
+                        <div class="patent-card">
+                            <div class="patent-title">{row['Title in English']}</div>
+                            <div class="patent-meta">
+                                <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
+                                <b>App No:</b> {row['Application Number']} | 
+                                <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
+                                <b>Earliest Priority Date:</b> {row['Earliest Priority Date']}
+                            </div>
+                            <div class="patent-snippet">{row['Abstract in English']}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            with tab_grid: st.dataframe(res_unique, use_container_width=True, hide_index=True)
+            with tab_dossier:
+                if res_unique.empty: st.info("No records.")
+                else:
+                    res_unique = res_unique.copy()
+                    res_unique['Display_Label'] = res_unique.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
+                    choice_label = st.selectbox("SELECT PATENT FILE TO DRILL DOWN:", res_unique['Display_Label'].unique())
+                    choice_number = choice_label.split(" | ")[0]
+                    # Select from the unique result set
+                    row = res_unique[res_unique['Application Number'] == choice_number].iloc[0]
+                    st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
+                    e_cols = [c for c, t in col_map.items() if t == "Enriched"]
+                    ec = st.columns(3)
+                    for i, c in enumerate(e_cols):
+                        with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:4px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header raw-banner">Raw Source Data</div>', unsafe_allow_html=True)
+                    r_cols = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English", "Application Type (ID)"]]
+                    rc = st.columns(3)
+                    for i, c in enumerate(r_cols):
+                        with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
+                    st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
     
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     elif app_mode == "Strategic Analysis":
