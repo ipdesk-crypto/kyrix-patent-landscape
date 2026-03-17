@@ -1158,7 +1158,7 @@ else:
                     else:
                         st.warning("No data found for the selected Applicant and Year(s).")
                 
-            with tabs[11]:
+            with tabs[7]:
                 st.markdown("### IPC Growth Histogram (Filing Date)")
                 u_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
                 a_yrs_hist = sorted(df_exp_f['Year'].unique())
