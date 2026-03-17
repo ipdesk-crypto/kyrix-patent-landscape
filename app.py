@@ -361,7 +361,8 @@ else:
 
     # --- 5. MODE: SEARCH ENGINE ---
     # --- 5. MODE: SEARCH ENGINE ---
-        if app_mode == "Intelligence Search":
+
+    if app_mode == "Intelligence Search":
             # --- ADDED: KYRIX KEYWORDS DICTIONARY ---
             kyrix_bins = {
                 "All": [],
