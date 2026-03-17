@@ -416,7 +416,7 @@ else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
             # UPDATED TAB LIST: Added "Applicant Intelligence" and "Firm's Client Lists"
-            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Firm Tech-Strengths", "STRATEGIC MAP", "IPC Classification", "Moving Averages", "Monthly Filing", "Growth of Applicants", "IPC Growth Histogram"])
+            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Monthly Filing", "Growth of Applicants", "IPC Growth Histogram"])
             
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
             with tabs[0]:
@@ -872,77 +872,8 @@ else:
                             st.dataframe(client_pivot_table, use_container_width=True)
                     else:
                         st.warning(f"No data found for {target_firm} in the selected years.")
+
             with tabs[5]:
-                df_exp_firms_only = df_exp_f[df_exp_f['Firm'] != "DIRECT FILING"]
-                if 'selected_firms' in locals() and selected_firms:
-                    firm_ipc = df_exp_firms_only[df_exp_firms_only['Firm'].isin(selected_firms)].groupby(['Firm', 'IPC_Class3']).size().reset_index(name='Count')
-                    fig = px.bar(firm_ipc, x='Count', y='Firm', color='IPC_Class3', orientation='h', height=600)
-                    st.plotly_chart(fix_chart(fig), use_container_width=True)
-                    
-            with tabs[6]:
-                land_data = df_exp_f.groupby(['IPC_Section', 'IPC_Class3']).agg({'Application Number':'count', 'Firm':'nunique'}).reset_index()
-                fig = px.scatter(land_data, x='IPC_Section', y='IPC_Class3', size='Application Number', color='Firm', height=600)
-                st.plotly_chart(fix_chart(fig), use_container_width=True)
-
-            with tabs[7]:
-                ipc_counts = df_exp_f.groupby('IPC_Section').size().reset_index(name='Count').sort_values('IPC_Section')
-                fig = px.bar(ipc_counts, x='IPC_Section', y='Count', color='IPC_Section', text='Count', height=600)
-                st.plotly_chart(fix_chart(fig), use_container_width=True)
-
-            with tabs[8]:
-                most_recent_date = df_main['AppDate'].max()
-                date_str = most_recent_date.strftime('%d %B %Y') if pd.notnull(most_recent_date) else "N/A"
-                st.markdown(f'<div class="metric-badge" style="padding:10px 20px; font-size:16px;">Most Recent Filing Date: {date_str}</div>', unsafe_allow_html=True)
-                
-                # REPORT BOX TOP
-                c18, c30 = get_cutoff_dates()
-                st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
-                            Type 4 & 5 Cutoff: <b>{c18.strftime('%d %B %Y')}</b> | Type 1 Cutoff: <b>{c30.strftime('%d %B %Y')}</b></div>""", unsafe_allow_html=True)
-
-                unique_3char = sorted(df_exp_f['IPC_Class3'].unique())
-                all_av_years = sorted(df_f['Year'].unique())
-                
-                c1, c2, c3 = st.columns(3)
-                with c1: target_ipc = st.selectbox("IPC Class (3-Digit):", ["ALL IPC"] + unique_3char, key="ma_ipc")
-                with c2:
-                    mode_ma = st.radio("Year Selection Mode:", ["Type Specific Years", "Select Range"], horizontal=True, key="mode_ma")
-                    if mode_ma == "Type Specific Years":
-                        ma_year_input = st.text_input("Type Years for Moving Average:", value=", ".join(map(str, all_av_years)))
-                        ma_years = parse_year_input(ma_year_input, all_av_years)
-                    else:
-                        min_y, max_y = min(all_av_years), max(all_av_years)
-                        s_year, e_year = st.slider("Select Year Range:", min_y, max_y, (min_y, max_y), key="ma_slider")
-                        ma_years = list(range(s_year, e_year + 1))
-                with c3:
-                    # TYPE ERROR FIX:
-                    all_av_types = sorted(df_f['Application Type (ID)'].astype(str).unique())
-                    sel_ma_types = st.multiselect("Visible Types:", all_av_types, default=all_av_types)
-                
-                analysis_df = df_exp_f.copy() if target_ipc == "ALL IPC" else df_exp_f[df_exp_f['IPC_Class3'] == target_ipc]
-                work_df = df_f.copy() if target_ipc == "ALL IPC" else df_f[df_f['Application Number'].isin(analysis_df['Application Number'].unique())]
-                work_df = work_df[(work_df['Year'].isin(ma_years)) & (work_df['Application Type (ID)'].astype(str).isin(sel_ma_types))]
-                analysis_df = analysis_df[(analysis_df['Year'].isin(ma_years)) & (analysis_df['Application Type (ID)'].astype(str).isin(sel_ma_types))]
-                
-                if not work_df.empty:
-                    f_range = pd.date_range(start=f"{min(ma_years)}-01-01", end=f"{max(ma_years)}-12-31", freq='MS')
-                    t_counts = analysis_df.groupby(['Arrival_Month', 'Application Type (ID)']).size().reset_index(name='N')
-                    t_pivot = t_counts.pivot(index='Arrival_Month', columns='Application Type (ID)', values='N').fillna(0)
-                    t_ma = t_pivot.reindex(f_range, fill_value=0).rolling(window=12, min_periods=1).sum()
-                    fig = go.Figure()
-                    for col in t_ma.columns:
-                        fig.add_trace(go.Scatter(x=t_ma.index, y=t_ma[col], mode='lines', line=dict(shape='spline', width=3), name=f'Type: {col}', fill='tozeroy'))
-                    
-                    # UPDATED: Use Dummy Traces for Legend instead of annotation_text
-                    fig.add_vline(x=c18.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#F59E0B")
-                    fig.add_vline(x=c30.timestamp() * 1000, line_width=2, line_dash="dash", line_color="#EF4444")
-                    
-                    fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#F59E0B", width=2, dash="dash"), name="18m Cutoff", showlegend=True))
-                    fig.add_trace(go.Scatter(x=[None], y=[None], mode='lines', line=dict(color="#EF4444", width=2, dash="dash"), name="30m Cutoff", showlegend=True))
-
-                    st.plotly_chart(fix_chart(fig), use_container_width=True)
-                else: st.warning("Insufficient data.")
-
-            with tabs[9]:
                     # 1. Base counting on 'Earliest Priority Date' without permanently altering other tabs
                     df_tab9 = df_f.copy()
                     df_tab9['Earliest Priority Date'] = pd.to_datetime(df_tab9['Earliest Priority Date'], errors='coerce')
@@ -1089,9 +1020,9 @@ else:
                     # Kept completely intact
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
 
-                # --- TAB 10: GROWTH OF APPLICANTS ---
-            with tabs[10]:
-                st.markdown("### GROWTH OF APPLICANTS")
+                # --- TAB 6: GROWTH OF APPLICANTS ---
+            with tabs[6]:
+                st.markdown("### GROWTH OF APPLICANTS/COUNTRY/IPC")
                 
                 # Base copy and date preparation (from Tab 9)
                 df_tab10 = df_f.copy()
