@@ -338,7 +338,7 @@ else:
             field_filters['Abstract in English'] = st.text_input("Search in Abstract")
             # --- NEW: KYRIX KEYWORDS PLACEHOLDER ---
             # Rendered for UI, but kept out of 'field_filters' to prevent KeyError crashes
-            kyrix_keywords_query = st.text_input("Search in Kyrix Keywords (Pending Mechanism)")
+            kyrix_keywords_query = st.text_input("Search in Kyrix Keywords")
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
@@ -363,31 +363,8 @@ else:
 
     # --- 5. MODE: SEARCH ENGINE ---
     if app_mode == "Intelligence Search":
-        # --- ADDED: KYRIX KEYWORDS DICTIONARY ---
-        kyrix_bins = {
-            "All": [],
-            "Bin # 1: Oil Companies in UAE": ["Abu Dhabi National Oil Company", "ADNOC", "Takreer", "Baker Hughes", "Bharat Petroleum", "BP", "Chevron", "ENI", "ExxonMobil", "Halliburton", "Hindustan Petroleum", "IFP Energies Nouvelles", "Indian Oil", "Institut Francais du Petrole", "M-I L.L.C.", "National Oilwell Varco", "PetroChina", "Petroliam Nasional Berhad", "Petronas", "Saudi Arabian Oil Company", "Saudi Aramco", "Schlumberger", "Shell", "Statoil", "TotalEnergies", "Total SA", "Total Marketing", "Total Raffinage", "Vallourec", "Weatherford", "Welltec"],
-            "Bin #2 Fintech": ["Mastercard", "Samsung Pay", "AEP Ticketing", "Securrency", "Trading Technologies", "Shinhan Card", "CompoSecure"],
-            "Bin #3 Food and Beverage": ["Nestec", "Nestlé", "PepsiCo", "Arla Foods", "Unilever", "Suntory", "Nissin Foods", "Mushlabs", "Avant Meats", "QBO Coffee", "K-Fee", "Inleit", "Sahyadri Farms", "Future Meat", "Melitta"],
-            "Bin #4 Blockchain": ["nChain", "Bitmain", "GCrypt", "Digital Currency Institute", "Tsinghua"],
-            "Bin # 5 Entertainment": ["Universal City Studios", "Sphere Entertainment", "Bungie", "Tata Play", "PCCW Vuclip", "Home Run Dugout", "Kelly Slater Wave", "Dolby"],
-            "Bin # 6 Pharmaceuticals & Healthcare": ["Novartis", "AstraZeneca", "Pfizer", "Johnson & Johnson", "Janssen", "Sanofi", "GlaxoSmithKline", "Merck Sharp & Dohme", "Eli Lilly", "Boehringer Ingelheim", "Amgen", "Bayer", "Gilead Sciences", "Bristol-Myers Squibb", "Biogen", "Regeneron", "Gulf Pharmaceutical", "Julfar"],
-            "Bin # 7 Industrial, Energy & Engineering": ["Halliburton", "Schlumberger", "Baker Hughes", "Shell", "Total Energies", "Siemens", "General Electric", "Abu Dhabi National Oil Company", "ADNOC", "Saudi Arabian Oil Company", "Aramco", "Honeywell", "Linde", "Dubai Electricity & Water Authority", "DEWA", "Thyssenkrupp", "Alstom"],
-            "Bin # 8 Technology, Communications & Research": ["Qualcomm", "Intel", "Samsung Electronics", "Huawei", "Telefonaktiebolaget", "Ericsson", "LG Electronics", "Apple", "Khalifa University", "Technology Innovation Institute", "TII", "United Arab Emirates University", "New York University", "Massachusetts Institute of Technology", "MIT"]
-        }
-        selected_kyrix_bin = st.selectbox("KYRIX KEYWORDS SEARCH", list(kyrix_bins.keys()))
-        # ----------------------------------------
-
         if df_search is not None and not df_search.empty:
             mask = boolean_search(df_search, global_query)
-            
-            # --- ADDED: APPLY KYRIX FILTER TO MASK ---
-            if selected_kyrix_bin != "All" and kyrix_bins[selected_kyrix_bin]:
-                import re
-                pattern = '|'.join([re.escape(c) for c in kyrix_bins[selected_kyrix_bin]])
-                mask &= df_search['Data of Applicant - Legal Name in English'].astype(str).str.contains(pattern, case=False, na=False)
-            # -----------------------------------------
-
             for field, f_query in field_filters.items():
                 if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
             res = df_search[mask]
@@ -435,6 +412,7 @@ else:
                         with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
                     st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
                     st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
+
     
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     elif app_mode == "Strategic Analysis":
