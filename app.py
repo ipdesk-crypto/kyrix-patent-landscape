@@ -336,18 +336,33 @@ else:
             field_filters = {}
             field_filters['Title in English'] = st.text_input("Search in Title")
             field_filters['Abstract in English'] = st.text_input("Search in Abstract")
-            # --- NEW: KYRIX KEYWORDS PLACEHOLDER ---
+            
+            # --- NEW: KYRIX KEYWORDS DROPDOWN ---
             # Rendered for UI, but kept out of 'field_filters' to prevent KeyError crashes
-            kyrix_keywords_query = st.text_input("Search in Kyrix Keywords")
+            kyrix_bins = {
+                "Bin # 1: Oil Companies in UAE": ["Abu Dhabi National Oil Company", "ADNOC", "Takreer", "Baker Hughes", "Bharat Petroleum", "BP", "Chevron", "ENI", "ExxonMobil", "Halliburton", "Hindustan Petroleum", "IFP Energies Nouvelles", "Indian Oil", "Institut Francais du Petrole", "M-I L.L.C.", "National Oilwell Varco", "PetroChina", "Petroliam Nasional Berhad", "Petronas", "Saudi Arabian Oil Company", "Saudi Aramco", "Schlumberger", "Shell", "Statoil", "TotalEnergies", "Total SA", "Total Marketing", "Total Raffinage", "Vallourec", "Weatherford", "Welltec"],
+                "Bin #2 Fintech": ["Mastercard", "Samsung Pay", "AEP Ticketing", "Securrency", "Trading Technologies", "Shinhan Card", "CompoSecure"],
+                "Bin #3 Food and Beverage": ["Nestec", "Nestlé", "PepsiCo", "Arla Foods", "Unilever", "Suntory", "Nissin Foods", "Mushlabs", "Avant Meats", "QBO Coffee", "K-Fee", "Inleit", "Sahyadri Farms", "Future Meat", "Melitta"],
+                "Bin #4 Blockchain": ["nChain", "Bitmain", "GCrypt", "Digital Currency Institute", "Tsinghua"],
+                "Bin # 5 Entertainment": ["Universal City Studios", "Sphere Entertainment", "Bungie", "Tata Play", "PCCW Vuclip", "Home Run Dugout", "Kelly Slater Wave", "Dolby"],
+                "Bin # 6 Pharmaceuticals & Healthcare": ["Novartis", "AstraZeneca", "Pfizer", "Johnson & Johnson", "Janssen", "Sanofi", "GlaxoSmithKline", "Merck Sharp & Dohme", "Eli Lilly", "Boehringer Ingelheim", "Amgen", "Bayer", "Gilead Sciences", "Bristol-Myers Squibb", "Biogen", "Regeneron", "Gulf Pharmaceutical", "Julfar"],
+                "Bin # 7 Industrial, Energy & Engineering": ["Halliburton", "Schlumberger", "Baker Hughes", "Shell", "Total Energies", "Siemens", "General Electric", "Abu Dhabi National Oil Company", "ADNOC", "Saudi Arabian Oil Company", "Aramco", "Honeywell", "Linde", "Dubai Electricity & Water Authority", "DEWA", "Thyssenkrupp", "Alstom"],
+                "Bin # 8 Technology, Communications & Research": ["Qualcomm", "Intel", "Samsung Electronics", "Huawei", "Telefonaktiebolaget", "Ericsson", "LG Electronics", "Apple", "Khalifa University", "Technology Innovation Institute", "TII", "United Arab Emirates University", "New York University", "Massachusetts Institute of Technology", "MIT"]
+            }
+            selected_kyrix_bin = st.selectbox("Search in Kyrix Keywords", ["All / None"] + list(kyrix_bins.keys()))
+            # ------------------------------------
+
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
             for field in other_fields:
                 field_filters[field] = st.text_input(f"{field.split(' - ')[-1]}")
+            
             if df_search is not None and not df_search.empty:
                 with st.expander("Show All Other Columns"):
                     for col in df_search.columns:
                         if col not in other_fields and col not in ['Abstract in English', 'Title in English']:
                             val = st.text_input(col, key=f"ex_{col}")
                             if val: field_filters[col] = val
+                            
         elif app_mode == "Strategic Analysis":
             st.markdown("### ANALYTICS FILTERS")
             if df_main is not None and not df_main.empty:
@@ -357,6 +372,7 @@ else:
                 df_f = df_main[df_main['Application Type (ID)'].astype(str).isin(selected_types)]
                 df_exp_f = df_exp[df_exp['Application Type (ID)'].astype(str).isin(selected_types)]
                 st.success(f"Records Analyzed: {len(df_f)}")
+                
         if st.button("RESET SYSTEM"): st.rerun()
 
     # --- 5. MODE: SEARCH ENGINE ---
@@ -365,6 +381,14 @@ else:
     if app_mode == "Intelligence Search":
         if df_search is not None and not df_search.empty:
             mask = boolean_search(df_search, global_query)
+            
+            # --- APPLY KYRIX KEYWORD MECHANISM HERE ---
+            if selected_kyrix_bin != "All / None":
+                import re
+                pattern = '|'.join([re.escape(c) for c in kyrix_bins[selected_kyrix_bin]])
+                mask &= df_search['Data of Applicant - Legal Name in English'].astype(str).str.contains(pattern, case=False, na=False)
+            # ------------------------------------------
+
             for field, f_query in field_filters.items():
                 if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
             res = df_search[mask]
