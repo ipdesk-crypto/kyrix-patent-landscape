@@ -443,9 +443,10 @@ else:
         if df_main is not None and not df_main.empty:
             st.markdown('<div class="metric-badge">STRATEGIC LANDSCAPE ENGINE</div>', unsafe_allow_html=True)
             # UPDATED TAB LIST: Added "Applicant Intelligence" and "Firm's Client Lists"
-            tabs = st.tabs(["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Monthly Filing", "Growth of Applicants", "IPC Growth Histogram"])
+            analysis_views = ["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Monthly Filing", "Growth of Applicants", "IPC Growth Histogram"]
+            active_tab = st.radio("Select Analysis Module:", analysis_views, horizontal=True)
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
-            with tabs[0]:
+            if active_tab == "Application Growth(By Filing Date)":
                 st.markdown("### Application Growth Intelligence (By Filing Year)")
                 
                 # REPORT BOX TOP
@@ -560,7 +561,7 @@ else:
                 else: st.warning("No data found.")
 
             # --- TAB 2: APPLICATION GROWTH 2.0 (EARLIEST PRIORITY DATE) ---
-            with tabs[1]:
+            elif active_tab == "Application Growth(By Earliest Priority Date)" :
                 st.markdown("### Application Growth(By Earliest Priority Date)")
                 
                 # PREPARE DATA BASED ON PRIORITY DATE
@@ -690,7 +691,7 @@ else:
                 df_f['Earliest Priority Year'] = df_f['Year'] # Fallback if missing
 
 # --- TAB 3: FIRM INTELLIGENCE ---
-            with tabs[2]:
+            elif active_tab == "Firm Intelligence" :
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
@@ -748,7 +749,7 @@ else:
                         st.warning("No data for the selected filters.")
 
             # --- TAB 4: APPLICANT INTELLIGENCE (NEW) ---
-            with tabs[3]:
+            elif active_tab == "Applicant Intelligence":
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
                 st.markdown(f"""<div class="report-box"><h4 style="color:#F59E0B;">📋 PUBLICATION LAG REPORT</h4>
@@ -806,7 +807,7 @@ else:
                         st.warning("No data for selected filters.")
 
             # --- TAB 5: FIRM'S CLIENT LISTS (NEW) ---
-            with tabs[4]:
+            elif active_tab == "Applicant Intelligence":
                 st.markdown("### Firm's Client Intelligence")
                 
                 # Get list of Firms and Years
@@ -861,7 +862,7 @@ else:
                     else:
                         st.warning(f"No data found for {target_firm} in the selected years.")
 
-            with tabs[5]:
+            elif active_tab == "Monthly Filing" :
                     # 1. Base counting on 'Earliest Priority Date' without permanently altering other tabs
                     df_tab9 = df_f.copy()
                     df_tab9['Earliest Priority Date'] = pd.to_datetime(df_tab9['Earliest Priority Date'], errors='coerce')
@@ -1011,7 +1012,7 @@ else:
                     st.plotly_chart(fix_chart(fig), use_container_width=True)
 
                 # --- TAB 6: GROWTH OF APPLICANTS ---
-            with tabs[6]:
+            elif active_tab == "Growth of Applicants":
                 st.markdown("### GROWTH OF APPLICANTS/COUNTRY/IPC")
                 
                 # Base copy and date preparation (from Tab 9)
@@ -1148,7 +1149,7 @@ else:
                     else:
                         st.warning("No data found for the selected Applicant and Year(s).")
                 
-            with tabs[7]:
+            elif active_tab == "IPC Growth Histogram":
                 st.markdown("### IPC Growth Histogram (Filing Date)")
                 u_ipc_list = sorted(df_exp_f['IPC_Class3'].unique())
                 a_yrs_hist = sorted(df_exp_f['Year'].unique())
