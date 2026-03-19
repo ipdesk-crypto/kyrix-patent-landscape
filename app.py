@@ -376,8 +376,6 @@ else:
         if st.button("RESET SYSTEM"): st.rerun()
 
     # --- 5. MODE: SEARCH ENGINE ---
-
-    # --- 5. MODE: SEARCH ENGINE ---
     if app_mode == "Intelligence Search":
         if df_search is not None and not df_search.empty:
             mask = boolean_search(df_search, global_query)
@@ -398,6 +396,17 @@ else:
             st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
             tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
             with tab_list:
+                # ==============================================================================
+                # --- NEW MECHANISM: 10 LATEST TYPE 5 APPLICATIONS FROM THE BOTTOM OF CSV ---
+                st.markdown("### 10 LATEST TYPE 5 APPLICATIONS (BASED ON CSV POSITION)")
+                latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
+                if not latest_type5.empty:
+                    st.dataframe(latest_type5, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No Type 5 Applications found in the dataset.")
+                st.markdown("---")
+                # ==============================================================================
+
                 if res_unique.empty: st.info("No records match your query.")
                 else:
                     for idx, row in res_unique.head(50).iterrows():
