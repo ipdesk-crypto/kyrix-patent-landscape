@@ -394,17 +394,36 @@ else:
             res_unique = res.copy()
             
             st.markdown(f'<div class="metric-badge">● {len(res_unique)} IDENTIFIED RECORDS</div>', unsafe_allow_html=True)
-            tab_list, tab_grid, tab_dossier = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW"])
+            
+            # --- MODIFIED: ADDED THE 4TH TAB ---
+            tab_list, tab_grid, tab_dossier, tab_top10 = st.tabs(["SEARCH OVERVIEW", "DATABASE GRID", "PATENT DOSSIER VIEW", "LATEST TYPE 5 DOSSIER"])
+            
             with tab_list:
                 # ==============================================================================
                 # --- NEW MECHANISM: 10 LATEST TYPE 5 APPLICATIONS FROM THE BOTTOM OF CSV ---
-                st.markdown("### 10 LATEST TYPE 5 APPLICATIONS (BASED ON CSV POSITION)")
-                latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
-                if not latest_type5.empty:
-                    st.dataframe(latest_type5, use_container_width=True, hide_index=True)
-                else:
-                    st.info("No Type 5 Applications found in the dataset.")
-                st.markdown("---")
+                # --- CONDITION: HIDE THIS IF ANY SEARCH IS ACTIVE ---
+                is_searching = bool(global_query.strip()) or any(val.strip() for val in field_filters.values()) or selected_kyrix_bin != "All / None"
+                
+                if not is_searching:
+                    st.markdown("### 10 LATEST TYPE 5 APPLICATIONS (BASED ON CSV POSITION)")
+                    latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
+                    if not latest_type5.empty:
+                        for idx, row in latest_type5.iterrows():
+                            st.markdown(f"""
+                            <div class="patent-card">
+                                <div class="patent-title">{row['Title in English']}</div>
+                                <div class="patent-meta">
+                                    <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
+                                    <b>App No:</b> {row['Application Number']} | 
+                                    <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
+                                    <b>Earliest Priority Date:</b> {row['Earliest Priority Date']}
+                                </div>
+                                <div class="patent-snippet">{row['Abstract in English']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.info("No Type 5 Applications found in the dataset.")
+                    st.markdown("---")
                 # ==============================================================================
 
                 if res_unique.empty: st.info("No records match your query.")
@@ -422,7 +441,9 @@ else:
                             <div class="patent-snippet">{row['Abstract in English']}</div>
                         </div>
                         """, unsafe_allow_html=True)
+            
             with tab_grid: st.dataframe(res_unique, use_container_width=True, hide_index=True)
+            
             with tab_dossier:
                 if res_unique.empty: st.info("No records.")
                 else:
@@ -446,7 +467,32 @@ else:
                     st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
                     st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
 
-    
+            # --- NEW TAB MECHANISM: LATEST TYPE 5 DETAILS (DOSSIER STYLE) ---
+            with tab_top10:
+                latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
+                if latest_type5.empty: 
+                    st.info("No Type 5 Applications found.")
+                else:
+                    latest_type5 = latest_type5.copy()
+                    latest_type5['Display_Label'] = latest_type5.apply(lambda x: f"{x['Application Number']} | {str(x['Title in English'])[:50]}...", axis=1)
+                    choice_label_top10 = st.selectbox("SELECT LATEST APPLICATION TO VIEW:", latest_type5['Display_Label'].unique(), key="top10_select")
+                    choice_number_top10 = choice_label_top10.split(" | ")[0]
+                    
+                    row = latest_type5[latest_type5['Application Number'] == choice_number_top10].iloc[0]
+                    st.markdown(f"## {row['Title in English']} <span class='type-badge'>TYPE: {row.get('Application Type (ID)', '-')}</span>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header enriched-banner">Enriched Intelligence Metrics</div>', unsafe_allow_html=True)
+                    e_cols = [c for c, t in col_map.items() if t == "Enriched"]
+                    ec = st.columns(3)
+                    for i, c in enumerate(e_cols):
+                        with ec[i%3]: st.markdown(f"<div class='data-card' style='border-left:4px solid #3B82F6;'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header raw-banner">Raw Source Data</div>', unsafe_allow_html=True)
+                    r_cols = [c for c, t in col_map.items() if t == "Raw" and c not in ["Abstract in English", "Title in English", "Application Type (ID)"]]
+                    rc = st.columns(3)
+                    for i, c in enumerate(r_cols):
+                        with rc[i%3]: st.markdown(f"<div class='data-card'><div class='label-text'>{c}</div><div class='value-text'>{row[c]}</div></div>", unsafe_allow_html=True)
+                    st.markdown('<div class="section-header title-banner">Technical Abstract</div>', unsafe_allow_html=True)
+                    st.markdown(f"<div class='abstract-container'>{row['Abstract in English']}</div>", unsafe_allow_html=True)
+
     # --- 6. MODE: STRATEGIC ANALYSIS ENGINE ---
     elif app_mode == "Strategic Analysis":
         if df_main is not None and not df_main.empty:
