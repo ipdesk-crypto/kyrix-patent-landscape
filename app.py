@@ -405,31 +405,41 @@ else:
                 is_searching = bool(global_query.strip()) or any(val.strip() for val in field_filters.values()) or selected_kyrix_bin != "All / None"
                 
                 if not is_searching:
-                    st.markdown("### 10 LATEST TYPE 5 APPLICATIONS (BASED ON CSV POSITION)")
+                    st.markdown("### <span style='color: #F59E0B;'>10 LATEST TYPE 5 APPLICATIONS</span> (BASED ON CSV POSITION)", unsafe_allow_html=True)
                     latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
                     if not latest_type5.empty:
                         for idx, row in latest_type5.iterrows():
-                            st.markdown(f"""
-                            <div class="patent-card">
-                                <div class="patent-title">{row['Title in English']}</div>
-                                <div class="patent-meta">
-                                    <span class="patent-tag">{row.get('Application Type (ID)', 'N/A')}</span>
+                            # Truncate abstract to a 150-character snippet
+                            full_abstract = str(row['Abstract in English'])
+                            abstract_snippet = full_abstract[:150] + "..." if len(full_abstract) > 150 else full_abstract
+
+                            # Smaller, orange-styled inline CSS box specifically for Top 10
+                            # Fixed triple quotes to prevent GitHub syntax highlight breaking
+                            st.markdown(f'''
+                            <div style="background-color: rgba(245, 158, 11, 0.05); border: 1px solid #F59E0B; padding: 10px 14px; margin-bottom: 12px; border-radius: 6px;">
+                                <div style="font-weight: 700; color: #F59E0B; font-size: 1.05em; margin-bottom: 4px;">{row['Title in English']}</div>
+                                <div style="font-size: 0.85em; color: gray; margin-bottom: 6px;">
+                                    <span style="background-color: #F59E0B; color: white; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-right: 6px;">{row.get('Application Type (ID)', 'N/A')}</span>
                                     <b>App No:</b> {row['Application Number']} | 
                                     <b>Applicant:</b> {row['Data of Applicant - Legal Name in English']} | 
                                     <b>Earliest Priority Date:</b> {row['Earliest Priority Date']}
                                 </div>
-                                <div class="patent-snippet">{row['Abstract in English']}</div>
+                                <div style="font-size: 0.85em; color: #d1d5db; line-height: 1.4;"><i>"{abstract_snippet}"</i></div>
                             </div>
-                            """, unsafe_allow_html=True)
+                            ''', unsafe_allow_html=True)
                     else:
                         st.info("No Type 5 Applications found in the dataset.")
+                    
+                    # Distinct end marker
+                    st.markdown("<div style='text-align: center; color: #F59E0B; font-size: 0.85em; font-weight: bold; margin: 25px 0 10px 0; letter-spacing: 1px;'>▲ END OF LATEST TYPE 5 PREVIEWS ▲</div>", unsafe_allow_html=True)
                     st.markdown("---")
                 # ==============================================================================
 
                 if res_unique.empty: st.info("No records match your query.")
                 else:
                     for idx, row in res_unique.head(50).iterrows():
-                        st.markdown(f"""
+                        # Fixed triple quotes to prevent GitHub syntax highlight breaking
+                        st.markdown(f'''
                         <div class="patent-card">
                             <div class="patent-title">{row['Title in English']}</div>
                             <div class="patent-meta">
@@ -440,7 +450,7 @@ else:
                             </div>
                             <div class="patent-snippet">{row['Abstract in English']}</div>
                         </div>
-                        """, unsafe_allow_html=True)
+                        ''', unsafe_allow_html=True)
             
             with tab_grid: st.dataframe(res_unique, use_container_width=True, hide_index=True)
             
