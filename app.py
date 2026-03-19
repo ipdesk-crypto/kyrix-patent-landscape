@@ -405,7 +405,7 @@ else:
                 is_searching = bool(global_query.strip()) or any(val.strip() for val in field_filters.values()) or selected_kyrix_bin != "All / None"
                 
                 if not is_searching:
-                    st.markdown("### <span style='color: #F59E0B;'>10 LATEST TYPE 5 APPLICATIONS</span> (BASED ON CSV POSITION)", unsafe_allow_html=True)
+                    st.markdown("### <span style='color: #F59E0B;'>10 LATEST TYPE 5 APPLICATIONS</span>", unsafe_allow_html=True)
                     latest_type5 = df_search[df_search['Application Type (ID)'].astype(str) == '5'].tail(10).iloc[::-1]
                     if not latest_type5.empty:
                         for idx, row in latest_type5.iterrows():
