@@ -510,6 +510,14 @@ else:
             # UPDATED TAB LIST: Added "Applicant Intelligence" and "Firm's Client Lists"
             analysis_views = ["Application Growth(By Filing Date)", "Application Growth(By Earliest Priority Date)", "Firm Intelligence", "Applicant Intelligence", "Firm's Client Lists", "Monthly Filing", "Growth of Applicants", "IPC Growth Histogram"]
             active_tab = st.radio("Select Analysis Module:", analysis_views, horizontal=True)
+            # --- PRE-PROCESSING FOR ALL TABS ---
+            # Extract Earliest Priority Year from the Earliest priority date
+            # Extract Earliest Priority Year from the Earliest priority date
+            if 'Earliest priority date' in df_f.columns:
+                df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest priority date'], errors='coerce').dt.year.fillna(0).astype(int)
+            elif 'Earliest Priority Year' not in df_f.columns:
+                df_f['Earliest Priority Year'] = df_f['Year']
+                
             # --- TAB 1: ORIGINAL APPLICATION GROWTH (Filing Date) ---
             if active_tab == "Application Growth(By Filing Date)":
                 st.markdown("### Application Growth Intelligence (By Filing Year)")
@@ -747,16 +755,9 @@ else:
                     st.dataframe(summary_pivot_p, use_container_width=True)
 
                 else: st.warning("No data found for Priority Dates.")
+                
 
-# --- PRE-PROCESSING FOR ALL TABS ---
-            # Extract Earliest Priority Year from the Earliest priority date
-            # Extract Earliest Priority Year from the Earliest priority date
-            if 'Earliest priority date' in df_f.columns:
-                df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest priority date'], errors='coerce').dt.year.fillna(0).astype(int)
-            elif 'Earliest Priority Year' not in df_f.columns:
-                df_f['Earliest Priority Year'] = df_f['Year'] # Fallback if missin
-
-# --- TAB 3: FIRM INTELLIGENCE ---
+            # --- TAB 3: FIRM INTELLIGENCE ---
             elif active_tab == "Firm Intelligence" :
                 # REPORT BOX TOP
                 c18, c30 = get_cutoff_dates()
