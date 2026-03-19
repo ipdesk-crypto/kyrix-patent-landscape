@@ -874,7 +874,7 @@ else:
                         st.warning("No data for selected filters.")
 
             # --- TAB 5: FIRM'S CLIENT LISTS (NEW) ---
-            elif active_tab == "Applicant Intelligence":
+            elif active_tab == "Firm's Client Lists":
                 st.markdown("### Firm's Client Intelligence")
                 
                 # Get list of Firms and Years
