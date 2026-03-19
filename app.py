@@ -750,7 +750,7 @@ else:
 
 # --- PRE-PROCESSING FOR ALL TABS ---
             # Extract Earliest Priority Year from the Earliest priority date
-            if 'Earliest priority date' in df_f.columns:
+                if 'Earliest priority date' in df_f.columns:
                 df_f['Earliest Priority Year'] = pd.to_datetime(df_f['Earliest priority date'], errors='coerce').dt.year.fillna(0).astype(int)
             elif 'Earliest Priority Year' not in df_f.columns:
                 df_f['Earliest Priority Year'] = df_f['Year'] # Fallback if missing
