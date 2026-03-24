@@ -321,7 +321,7 @@ if not st.session_state.auth:
             else: st.error("INVALID KEY")
         st.markdown('</div>', unsafe_allow_html=True)
 else:
-    # --- 4. NAVIGATION & SIDEBAR ---
+   # --- 4. NAVIGATION & SIDEBAR ---
     with st.sidebar:
         logo = get_logo()
         if logo: st.image(logo)
