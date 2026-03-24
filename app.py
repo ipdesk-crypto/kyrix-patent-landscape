@@ -353,59 +353,59 @@ else:
             # ------------------------------------
 
             # --- NEW: IPC BINS DROPDOWN ---
-            ipc_bins_regex = {
-                "Bin 1: Agriculture & Food": [r"^A01", r"^A21", r"^A23"],
-                "Bin 2: Personal & Domestic Goods": [r"^A4[1-7]"],
-                "Bin 3: Medical: Surgery & Diagnostics": [r"^A61B", r"^A61C", r"^A61F", r"^A61G"],
-                "Bin 4: Medical: Pharma & Cosmetics": [r"^A61K", r"^A61Q"],
-                "Bin 5: Medical: Treatments & Tools": [r"^A61H", r"^A61L", r"^A61M", r"^A61N"],
-                "Bin 6: Sports, Games & Amusements": [r"^A63"],
-                "Bin 7: Safety & Life-Saving": [r"^A62"],
-                "Bin 8: Separating & Mixing": [r"^B0[1-9]"],
-                "Bin 9: Shaping: Metal & Casting": [r"^B2[1-3]"],
-                "Bin 10: Shaping: Wood & Stone": [r"^B2[4-8]"],
-                "Bin 11: Shaping: Plastics & Glass": [r"^B29", r"^C03B"],
-                "Bin 12: Printing & Stationery": [r"^B4[1-4]"],
-                "Bin 13: Transport: Vehicles & Rail": [r"^B6[0-2]"],
-                "Bin 14: Transport: Ships, Aero & Space": [r"^B6[3-4]"],
-                "Bin 15: Conveying, Packing & Storage": [r"^B6[5-8]"],
-                "Bin 16: Inorganic Chemistry": [r"^C01"],
-                "Bin 17: Organic Chemistry": [r"^C07"],
-                "Bin 18: Polymers & Macromolecules": [r"^C08"],
-                "Bin 19: Biotechnology & Genetic Eng.": [r"^C12"],
-                "Bin 20: Metallurgy & Materials Science": [r"^C2[1-3]"],
-                "Bin 21: Coating & Dyeing (Chemical)": [r"^C09", r"^D06P"],
-                "Bin 22: Petroleum & Gas Technology": [r"^C10"],
-                "Bin 23: Natural/Man-made Fibres": [r"^D01"],
-                "Bin 24: Yarns, Weaving & Knitting": [r"^D0[2-4]"],
-                "Bin 25: Sewing & Textile Finishing": [r"^D05", r"^D06(?!P)"],
-                "Bin 26: Ropes & Paper-making": [r"^D07", r"^D21"],
-                "Bin 27: Building: Structures": [r"^E0[1-4]"],
-                "Bin 28: Building: Finishing & Locks": [r"^E0[5-6]"],
-                "Bin 29: Earth Drilling & Mining": [r"^E21"],
-                "Bin 30: Hydraulic Engineering": [r"^E02"],
-                "Bin 31: Engines & Pumps": [r"^F0[1-4]"],
-                "Bin 32: Engineering Elements": [r"^F1[5-7]"],
-                "Bin 33: Lighting & Heating": [r"^F2[1-8]"],
-                "Bin 34: Weapons, Ammo & Blasting": [r"^F4[1-2]"],
-                "Bin 35: Measurement & Testing": [r"^G01"],
-                "Bin 36: Optics & Photography": [r"^G0[2-3]"],
-                "Bin 37: Horology (Clocks/Watches)": [r"^G04"],
-                "Bin 38: Control & Regulating Systems": [r"^G05"],
-                "Bin 39: Computing: Hardware & Storage": [r"^G06C", r"^G06F(?!\s*(16/95|21))"],
-                "Bin 40: AI & Advanced Search Tech": [r"^G06F\s*16/95", r"^G06N"],
-                "Bin 41: Security & Blockchain": [r"^G06F\s*21", r"^H04L\s*9/32", r"^G06Q\s*20/06"],
-                "Bin 42: Business & Admin (FinTech)": [r"^G06Q(?!\s*20/06)"],
-                "Bin 43: Education & Music": [r"^G09", r"^G10"],
-                "Bin 44: Nuclear Physics": [r"^G21"],
-                "Bin 45: Basic Electric Elements": [r"^H01"],
-                "Bin 46: Power: Gen & Distribution": [r"^H02"],
-                "Bin 47: Wired Comms & Broadcasting": [r"^H04B", r"^H04H", r"^H04L(?!\s*9/32)", r"^H04M", r"^H04N"],
-                "Bin 48: Wireless Infrastructure": [r"^H04W\s*88/08"],
-                "Bin 49: Wireless Networking": [r"^H04W(?!\s*88/08)"],
-                "Bin 50: Miscellaneous & Unclassified": [r"^G99", r"^D99", r"^H99"]
+            ipc_bins = {
+                "Bin 1: Agriculture & Food": ["A01", "A21", "A23"],
+                "Bin 2: Personal & Domestic Goods": ["A41", "A42", "A43", "A44", "A45", "A46", "A47"],
+                "Bin 3: Medical: Surgery & Diagnostics": ["A61B", "A61C", "A61F", "A61G"],
+                "Bin 4: Medical: Pharma & Cosmetics": ["A61K", "A61Q"],
+                "Bin 5: Medical: Treatments & Tools": ["A61H", "A61L", "A61M", "A61N"],
+                "Bin 6: Sports, Games & Amusements": ["A63"],
+                "Bin 7: Safety & Life-Saving": ["A62"],
+                "Bin 8: Separating & Mixing": ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09"],
+                "Bin 9: Shaping: Metal & Casting": ["B21", "B22", "B23"],
+                "Bin 10: Shaping: Wood & Stone": ["B24", "B25", "B26", "B27", "B28"],
+                "Bin 11: Shaping: Plastics & Glass": ["B29", "C03B"],
+                "Bin 12: Printing & Stationery": ["B41", "B42", "B43", "B44"],
+                "Bin 13: Transport: Vehicles & Rail": ["B60", "B61", "B62"],
+                "Bin 14: Transport: Ships, Aero & Space": ["B63", "B64"],
+                "Bin 15: Conveying, Packing & Storage": ["B65", "B66", "B67", "B68"],
+                "Bin 16: Inorganic Chemistry": ["C01"],
+                "Bin 17: Organic Chemistry": ["C07"],
+                "Bin 18: Polymers & Macromolecules": ["C08"],
+                "Bin 19: Biotechnology & Genetic Eng.": ["C12"],
+                "Bin 20: Metallurgy & Materials Science": ["C21", "C22", "C23"],
+                "Bin 21: Coating & Dyeing (Chemical)": ["C09", "D06P"],
+                "Bin 22: Petroleum & Gas Technology": ["C10"],
+                "Bin 23: Natural/Man-made Fibres": ["D01"],
+                "Bin 24: Yarns, Weaving & Knitting": ["D02", "D03", "D04"],
+                "Bin 25: Sewing & Textile Finishing": ["D05", "D06"],
+                "Bin 26: Ropes & Paper-making": ["D07", "D21"],
+                "Bin 27: Building: Structures": ["E01", "E02", "E03", "E04"],
+                "Bin 28: Building: Finishing & Locks": ["E05", "E06"],
+                "Bin 29: Earth Drilling & Mining": ["E21"],
+                "Bin 30: Hydraulic Engineering": ["E02"],
+                "Bin 31: Engines & Pumps": ["F01", "F02", "F03", "F04"],
+                "Bin 32: Engineering Elements": ["F15", "F16", "F17"],
+                "Bin 33: Lighting & Heating": ["F21", "F22", "F23", "F24", "F25", "F26", "F27", "F28"],
+                "Bin 34: Weapons, Ammo & Blasting": ["F41", "F42"],
+                "Bin 35: Measurement & Testing": ["G01"],
+                "Bin 36: Optics & Photography": ["G02", "G03"],
+                "Bin 37: Horology (Clocks/Watches)": ["G04"],
+                "Bin 38: Control & Regulating Systems": ["G05"],
+                "Bin 39: Computing: Hardware & Storage": ["G06C", "G06F"],
+                "Bin 40: AI & Advanced Search Tech": ["G06F 16/95", "G06N"],
+                "Bin 41: Security & Blockchain": ["G06F 21", "H04L 9/32", "G06Q 20/06"],
+                "Bin 42: Business & Admin (FinTech)": ["G06Q"],
+                "Bin 43: Education & Music": ["G09", "G10"],
+                "Bin 44: Nuclear Physics": ["G21"],
+                "Bin 45: Basic Electric Elements": ["H01"],
+                "Bin 46: Power: Gen & Distribution": ["H02"],
+                "Bin 47: Wired Comms & Broadcasting": ["H04B", "H04H", "H04L", "H04M", "H04N"],
+                "Bin 48: Wireless Infrastructure": ["H04W 88/08"],
+                "Bin 49: Wireless Networking": ["H04W"],
+                "Bin 50: Miscellaneous & Unclassified": ["G99", "D99", "H99"]
             }
-            selected_ipc_bin = st.selectbox("Search based on IPC classes", ["All / None"] + list(ipc_bins_regex.keys()))
+            selected_ipc_bin = st.selectbox("Search based on IPC classes", ["All / None"] + list(ipc_bins.keys()))
             # ------------------------------------
 
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
@@ -445,12 +445,19 @@ else:
 
             # --- APPLY IPC CLASSES MECHANISM HERE ---
             if selected_ipc_bin != "All / None":
-                # PERFORMANCE FIX: Since the regex uses "^" (beginning of string), we don't need to split the 
-                # string at all. It inherently only checks the first listed code, natively following the "First-Class" rule 
-                # with near-zero performance cost. "There's no classification" naturally fails this check too.
-                ipc_pattern = '|'.join(ipc_bins_regex[selected_ipc_bin])
+                # PERFORMANCE FIX: O(n) simple string checks. NO REGEX.
+                # Runs instantly and inherently isolates the first class (First-Class Rule).
+                prefixes = tuple(ipc_bins[selected_ipc_bin])
                 
-                mask &= df_search['Classification'].astype(str).str.strip().str.contains(ipc_pattern, case=False, na=False, regex=True)
+                def match_first_ipc(val):
+                    val_str = str(val).strip()
+                    if val_str.lower() == "there's no classification":
+                        return False
+                    # Separate out the first class based on common database separators
+                    first_class = val_str.replace(';', ',').replace('|', ',').split(',')[0].strip()
+                    return first_class.startswith(prefixes)
+
+                mask &= df_search['Classification'].apply(match_first_ipc)
             # ------------------------------------------
 
             for field, f_query in field_filters.items():
