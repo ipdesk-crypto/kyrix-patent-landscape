@@ -445,17 +445,12 @@ else:
 
             # --- APPLY IPC CLASSES MECHANISM HERE ---
             if selected_ipc_bin != "All / None":
-                # Get the first classification, splitting by common separators. 
-                first_ipc = df_search['Classification'].astype(str).str.split(r'[,;|]').str[0].str.strip()
-                
-                # Combine regex patterns for the selected bin
+                # PERFORMANCE FIX: Since the regex uses "^" (beginning of string), we don't need to split the 
+                # string at all. It inherently only checks the first listed code, natively following the "First-Class" rule 
+                # with near-zero performance cost. "There's no classification" naturally fails this check too.
                 ipc_pattern = '|'.join(ipc_bins_regex[selected_ipc_bin])
                 
-                # Filter out "There's no classification" and match the pattern based on first class
-                valid_ipc_mask = ~first_ipc.str.contains("There's no classification", case=False, na=False)
-                match_mask = first_ipc.str.contains(ipc_pattern, case=False, na=False, regex=True)
-                
-                mask &= (valid_ipc_mask & match_mask)
+                mask &= df_search['Classification'].astype(str).str.strip().str.contains(ipc_pattern, case=False, na=False, regex=True)
             # ------------------------------------------
 
             for field, f_query in field_filters.items():
