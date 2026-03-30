@@ -321,7 +321,7 @@ if not st.session_state.auth:
             else: st.error("INVALID KEY")
         st.markdown('</div>', unsafe_allow_html=True)
 else:
-    # --- 4. NAVIGATION & SIDEBAR ---
+   # --- 4. NAVIGATION & SIDEBAR ---
     with st.sidebar:
         logo = get_logo()
         if logo: st.image(logo)
@@ -350,6 +350,62 @@ else:
                 "Bin # 8 Technology, Communications & Research": ["Qualcomm", "Intel", "Samsung Electronics", "Huawei", "Telefonaktiebolaget", "Ericsson", "LG Electronics", "Apple", "Khalifa University", "Technology Innovation Institute", "TII", "United Arab Emirates University", "New York University", "Massachusetts Institute of Technology", "MIT"]
             }
             selected_kyrix_bin = st.selectbox("Search in Kyrix Keywords", ["All / None"] + list(kyrix_bins.keys()))
+            # ------------------------------------
+
+            # --- NEW: IPC BINS DROPDOWN ---
+            ipc_bins = {
+                "Bin 1: Agriculture & Food": ["A01", "A21", "A23"],
+                "Bin 2: Personal & Domestic Goods": ["A41", "A42", "A43", "A44", "A45", "A46", "A47"],
+                "Bin 3: Medical: Surgery & Diagnostics": ["A61B", "A61C", "A61F", "A61G"],
+                "Bin 4: Medical: Pharma & Cosmetics": ["A61K", "A61Q"],
+                "Bin 5: Medical: Treatments & Tools": ["A61H", "A61L", "A61M", "A61N"],
+                "Bin 6: Sports, Games & Amusements": ["A63"],
+                "Bin 7: Safety & Life-Saving": ["A62"],
+                "Bin 8: Separating & Mixing": ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B09"],
+                "Bin 9: Shaping: Metal & Casting": ["B21", "B22", "B23"],
+                "Bin 10: Shaping: Wood & Stone": ["B24", "B25", "B26", "B27", "B28"],
+                "Bin 11: Shaping: Plastics & Glass": ["B29", "C03B"],
+                "Bin 12: Printing & Stationery": ["B41", "B42", "B43", "B44"],
+                "Bin 13: Transport: Vehicles & Rail": ["B60", "B61", "B62"],
+                "Bin 14: Transport: Ships, Aero & Space": ["B63", "B64"],
+                "Bin 15: Conveying, Packing & Storage": ["B65", "B66", "B67", "B68"],
+                "Bin 16: Inorganic Chemistry": ["C01"],
+                "Bin 17: Organic Chemistry": ["C07"],
+                "Bin 18: Polymers & Macromolecules": ["C08"],
+                "Bin 19: Biotechnology & Genetic Eng.": ["C12"],
+                "Bin 20: Metallurgy & Materials Science": ["C21", "C22", "C23"],
+                "Bin 21: Coating & Dyeing (Chemical)": ["C09", "D06P"],
+                "Bin 22: Petroleum & Gas Technology": ["C10"],
+                "Bin 23: Natural/Man-made Fibres": ["D01"],
+                "Bin 24: Yarns, Weaving & Knitting": ["D02", "D03", "D04"],
+                "Bin 25: Sewing & Textile Finishing": ["D05", "D06"],
+                "Bin 26: Ropes & Paper-making": ["D07", "D21"],
+                "Bin 27: Building: Structures": ["E01", "E02", "E03", "E04"],
+                "Bin 28: Building: Finishing & Locks": ["E05", "E06"],
+                "Bin 29: Earth Drilling & Mining": ["E21"],
+                "Bin 30: Hydraulic Engineering": ["E02"],
+                "Bin 31: Engines & Pumps": ["F01", "F02", "F03", "F04"],
+                "Bin 32: Engineering Elements": ["F15", "F16", "F17"],
+                "Bin 33: Lighting & Heating": ["F21", "F22", "F23", "F24", "F25", "F26", "F27", "F28"],
+                "Bin 34: Weapons, Ammo & Blasting": ["F41", "F42"],
+                "Bin 35: Measurement & Testing": ["G01"],
+                "Bin 36: Optics & Photography": ["G02", "G03"],
+                "Bin 37: Horology (Clocks/Watches)": ["G04"],
+                "Bin 38: Control & Regulating Systems": ["G05"],
+                "Bin 39: Computing: Hardware & Storage": ["G06C", "G06F"],
+                "Bin 40: AI & Advanced Search Tech": ["G06F 16/95", "G06N"],
+                "Bin 41: Security & Blockchain": ["G06F 21", "H04L 9/32", "G06Q 20/06"],
+                "Bin 42: Business & Admin (FinTech)": ["G06Q"],
+                "Bin 43: Education & Music": ["G09", "G10"],
+                "Bin 44: Nuclear Physics": ["G21"],
+                "Bin 45: Basic Electric Elements": ["H01"],
+                "Bin 46: Power: Gen & Distribution": ["H02"],
+                "Bin 47: Wired Comms & Broadcasting": ["H04B", "H04H", "H04L", "H04M", "H04N"],
+                "Bin 48: Wireless Infrastructure": ["H04W 88/08"],
+                "Bin 49: Wireless Networking": ["H04W"],
+                "Bin 50: Miscellaneous & Unclassified": ["G99", "D99", "H99"]
+            }
+            selected_ipc_bin = st.selectbox("Search based on IPC classes", ["All / None"] + list(ipc_bins.keys()))
             # ------------------------------------
 
             other_fields = ['Application Number', 'Data of Applicant - Legal Name in English', 'Classification']
@@ -387,6 +443,23 @@ else:
                 mask &= df_search['Data of Applicant - Legal Name in English'].astype(str).str.contains(pattern, case=False, na=False)
             # ------------------------------------------
 
+            # --- APPLY IPC CLASSES MECHANISM HERE ---
+            if selected_ipc_bin != "All / None":
+                # PERFORMANCE FIX: O(n) simple string checks. NO REGEX.
+                # Runs instantly and inherently isolates the first class (First-Class Rule).
+                prefixes = tuple(ipc_bins[selected_ipc_bin])
+                
+                def match_first_ipc(val):
+                    val_str = str(val).strip()
+                    if val_str.lower() == "there's no classification":
+                        return False
+                    # Separate out the first class based on common database separators
+                    first_class = val_str.replace(';', ',').replace('|', ',').split(',')[0].strip()
+                    return first_class.startswith(prefixes)
+
+                mask &= df_search['Classification'].apply(match_first_ipc)
+            # ------------------------------------------
+
             for field, f_query in field_filters.items():
                 if f_query: mask &= df_search[field].astype(str).str.contains(f_query, case=False, na=False)
             res = df_search[mask]
@@ -402,7 +475,7 @@ else:
                 # ==============================================================================
                 # --- NEW MECHANISM: 10 LATEST TYPE 5 APPLICATIONS FROM THE BOTTOM OF CSV ---
                 # --- CONDITION: HIDE THIS IF ANY SEARCH IS ACTIVE ---
-                is_searching = bool(global_query.strip()) or any(val.strip() for val in field_filters.values()) or selected_kyrix_bin != "All / None"
+                is_searching = bool(global_query.strip()) or any(val.strip() for val in field_filters.values()) or selected_kyrix_bin != "All / None" or selected_ipc_bin != "All / None"
                 
                 if not is_searching:
                     st.markdown("### <span style='color: #F59E0B;'>10 LATEST TYPE 5 APPLICATIONS</span>", unsafe_allow_html=True)
